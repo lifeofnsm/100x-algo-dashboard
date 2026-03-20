@@ -75,8 +75,11 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);min
 .hdr-right{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .hdr-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .period{font-size:11px;color:var(--text2)}
-.sync-ts{font-size:10px;color:var(--text3);white-space:nowrap}
-.sync-ts:not(:empty)::before{content:"🕐 ";font-size:10px}
+.sync-ts{display:inline-flex;align-items:center;gap:4px;background:rgba(92,156,245,.1);
+  border:1px solid rgba(92,156,245,.28);border-radius:20px;padding:3px 10px;
+  font-size:10px;font-weight:500;color:var(--blue);white-space:nowrap;letter-spacing:.01em}
+.sync-ts:empty{display:none!important}
+[data-theme="light"] .sync-ts{background:rgba(56,126,209,.08);border-color:rgba(56,126,209,.3);color:var(--blue)}
 .period span{color:var(--text2);font-weight:500}
 .live-badge{display:inline-flex;align-items:center;gap:5px;background:var(--green-dim);
   border:1px solid var(--green);border-radius:20px;padding:3px 10px;
@@ -969,7 +972,7 @@ function populateDashboard(data) {
       const istOpts = { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short',
                         hour: '2-digit', minute: '2-digit', hour12: true };
       document.getElementById('syncTs').textContent =
-        'Synced ' + d.toLocaleString('en-IN', istOpts) + ' IST';
+        '\uD83D\uDD04 Synced ' + d.toLocaleString('en-IN', istOpts) + ' IST';
     } catch(e) {
       document.getElementById('syncTs').textContent = '';
     }
