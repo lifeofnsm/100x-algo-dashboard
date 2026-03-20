@@ -5,11 +5,11 @@
       "name": "Nataraj",
       "api_key_env": "NATARAJ_API_KEY",
       "api_secret_env": "NATARAJ_API_SECRET",
-      "active": true,
+      "active": false,
       "endpoint": "https://api.india.delta.exchange",
       "assumed_capital_usd": 10000,
       "usd_inr_rate": 85,
-      "note": "Main account"
+      "note": "New account — data cleared, going live next week"
     },
     {
       "id": "shalini",
@@ -18,9 +18,10 @@
       "api_secret_env": "SHALINI_API_SECRET",
       "active": true,
       "endpoint": "https://api.india.delta.exchange",
-      "assumed_capital_usd": 10000,
+      "assumed_capital_usd": 4705.88,
+      "assumed_capital_inr": 400000,
       "usd_inr_rate": 85,
-      "note": "Shalini account"
+      "note": "Starting capital: ₹2,00,000 own + ₹2,00,000 transferred from Vinay profits"
     },
     {
       "id": "mom",
@@ -29,9 +30,10 @@
       "api_secret_env": "MOM_API_SECRET",
       "active": true,
       "endpoint": "https://api.india.delta.exchange",
-      "assumed_capital_usd": 10000,
+      "assumed_capital_usd": 2247.06,
+      "assumed_capital_inr": 191000,
       "usd_inr_rate": 85,
-      "note": "Mom account"
+      "note": "Starting capital: ₹1,91,000"
     },
     {
       "id": "vinay",
@@ -40,9 +42,11 @@
       "api_secret_env": "VINAY_API_SECRET",
       "active": true,
       "endpoint": "https://api.india.delta.exchange",
-      "assumed_capital_usd": 10000,
+      "assumed_capital_usd": 2352.94,
+      "assumed_capital_inr": 200000,
+      "profit_transfer_out_inr": 200000,
       "usd_inr_rate": 85,
-      "note": "Vinay account"
+      "note": "Starting capital: ₹2,00,000 | ₹2,00,000 profit transferred to Shalini"
     }
   ]
 }

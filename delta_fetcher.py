@@ -159,6 +159,141 @@ def fetch_open_positions(endpoint, api_key, api_secret):
         return []
 
 
+def fetch_wallet_balance(endpoint, api_key, api_secret):
+    """
+    Fetch current wallet balances from /v2/wallet/balances.
+    Returns total available balance in USD (USDT asset).
+    Also returns raw balances list for inspection.
+    """
+    path = "/v2/wallet/balances"
+    headers = _auth_headers(api_key, api_secret, "GET", path)
+    url = f"{endpoint}{path}"
+    try:
+        resp = requests.get(url, headers=headers, timeout=15)
+        data = resp.json()
+        balances = data.get("result", [])
+        if not balances:
+            return None, []
+
+        # Look for USD/USDT balance (main margin currency on Delta India)
+        # Fields confirmed from live API response:
+        #   available_balance = free cash only (not in any position)
+        #   balance           = available_balance + position_margin = total USD in account
+        #   balance_inr       = balance converted to INR by Delta's own rate
+        #   position_margin   = margin locked in open positions
+        # Use `balance` as the true wallet equity (matches computed NAV closely)
+        usdt_balance = None
+        for b in balances:
+            sym = (b.get("asset_symbol") or b.get("currency") or "").upper()
+            if sym in ("USDT", "USD"):
+                balance_usd     = float(b.get("balance") or b.get("available_balance") or 0)
+                balance_inr     = float(b.get("balance_inr") or 0)
+                available       = float(b.get("available_balance") or 0)
+                position_margin = float(b.get("position_margin") or b.get("blocked_margin") or 0)
+                # unrealized_pnl may be directly in the balance object on some API versions
+                unrealized_pnl  = float(b.get("unrealized_pnl") or b.get("unrealized_funding") or 0)
+                # equity = balance + unrealized_pnl (true mark-to-market value)
+                equity_usd      = round(balance_usd + unrealized_pnl, 4)
+                usdt_balance = {
+                    "asset": sym,
+                    "balance": round(balance_usd, 4),        # collateral only (available + position_margin)
+                    "balance_inr": round(balance_inr, 2),    # INR from Delta's own rate
+                    "available": round(available, 4),         # free margin
+                    "position_margin": round(position_margin, 4),
+                    "unrealized_pnl": round(unrealized_pnl, 4),
+                    "equity": equity_usd,                     # true mark-to-market value
+                }
+                break
+
+        return usdt_balance, balances
+    except Exception as e:
+        print(f"  [fetch_wallet] Error: {e}")
+        return None, []
+
+
+def fetch_wallet_transactions(endpoint, api_key, api_secret):
+    """
+    Try to fetch wallet transaction history from /v2/wallet/transactions.
+    Returns net deposited capital (deposits - withdrawals) in USD.
+    Returns None if endpoint is not available or returns no data.
+    """
+    path = "/v2/wallet/transactions"
+    all_txns = []
+    after = None
+
+    for _ in range(50):   # max 50 pages of transactions
+        params = {"page_size": 100}
+        if after:
+            params["after"] = after
+        query = "&".join(f"{k}={v}" for k, v in params.items())
+        url = f"{endpoint}{path}?{query}"
+        headers = _auth_headers(api_key, api_secret, "GET", path, query)
+
+        try:
+            resp = requests.get(url, headers=headers, timeout=15)
+            if resp.status_code != 200:
+                print(f"  [fetch_wallet_txns] HTTP {resp.status_code} — endpoint may not be available")
+                return None
+            data = resp.json()
+            txns = data.get("result", [])
+            if not txns:
+                break
+            all_txns.extend(txns)
+            meta = data.get("meta", {})
+            after = meta.get("after")
+            if not after:
+                break
+            time.sleep(0.2)
+        except Exception as e:
+            print(f"  [fetch_wallet_txns] Error: {e}")
+            return None
+
+    if not all_txns:
+        return None
+
+    # Print unique transaction types seen — helps debug field name mismatches
+    seen_types = sorted(set(
+        (txn.get("transaction_type") or txn.get("type") or "unknown").lower()
+        for txn in all_txns
+    ))
+    print(f"  [fetch_wallet_txns] {len(all_txns)} txns | Types seen: {seen_types}")
+
+    # Sum deposits and withdrawals
+    # Delta Exchange India known types (may vary by account):
+    # deposit-like:    "deposit", "inward_transfer", "credit", "transfer_in"
+    # withdrawal-like: "withdrawal", "outward_transfer", "debit", "transfer_out"
+    DEPOSIT_TYPES    = {"deposit", "inward_transfer", "credit", "transfer_in",
+                        "fund_deposit", "usdt_deposit"}
+    WITHDRAWAL_TYPES = {"withdrawal", "outward_transfer", "debit", "transfer_out",
+                        "fund_withdrawal", "usdt_withdrawal"}
+
+    total_deposited = 0.0
+    total_withdrawn = 0.0
+    for txn in all_txns:
+        txn_type = (txn.get("transaction_type") or txn.get("type") or "").lower()
+        amount = float(txn.get("amount") or 0)
+        if txn_type in DEPOSIT_TYPES:
+            total_deposited += abs(amount)
+        elif txn_type in WITHDRAWAL_TYPES:
+            total_withdrawn += abs(amount)
+
+    net_capital = total_deposited - total_withdrawn
+    print(f"  [fetch_wallet_txns] Deposits: ${total_deposited:,.2f} | Withdrawals: ${total_withdrawn:,.2f} | Net: ${net_capital:,.2f}")
+    return {
+        "total_deposited_usd": round(total_deposited, 2),
+        "total_withdrawn_usd": round(total_withdrawn, 2),
+        "net_capital_usd": round(net_capital, 2),
+        "transaction_count": len(all_txns),
+        "types_seen": seen_types,
+    } if net_capital > 0 else {
+        "total_deposited_usd": round(total_deposited, 2),
+        "total_withdrawn_usd": round(total_withdrawn, 2),
+        "net_capital_usd": 0,
+        "transaction_count": len(all_txns),
+        "types_seen": seen_types,
+    }
+
+
 # ── TIMESTAMP HELPERS ─────────────────────────────────────────────────────────
 def _parse_dt(ts_str):
     """Parse ISO timestamp string to datetime."""
@@ -174,135 +309,147 @@ def _dt_str(dt):
 # ── TRADE BUILDER FROM ORDERS ─────────────────────────────────────────────────
 def build_trades_from_orders(orders):
     """
-    Convert order history into closed trades and open trades.
+    FIFO Position Tracking — handles staggered entries AND staggered exits.
 
-    Exit order:  state=closed, meta_data.pnl != 0, reduce_only=true
-                 → has entry_price, avg_exit_price, pnl in meta_data
-    Entry order: state=closed, meta_data.pnl == 0 or not present, reduce_only=false
-                 → average_fill_price = entry price
-
-    For each exit order we build a complete trade.
-    We try to match it with its corresponding entry order for accurate entry_time.
-    If no match, entry_time falls back to exit_time (conservative).
+    Logic:
+      - Process all filled orders chronologically per symbol.
+      - Maintain a per-symbol FIFO lot queue (entry lots with qty + price + time + fees).
+      - Each exit order consumes lots FIFO by qty:
+          * Staggered entry, single exit  → multiple lots consumed, weighted avg entry price
+          * Single entry, staggered exits → one lot partially consumed per exit
+          * Mixed                         → handled naturally by FIFO queue
+      - PnL always comes from meta_data.pnl (exchange-reported, authoritative).
+      - Entry time = earliest lot consumed for that exit.
+      - Entry price = weighted average of consumed lots.
 
     Returns: (closed_trades, open_trades)
     """
-    exit_orders = []
-    entry_orders = []
+    from collections import defaultdict, deque
 
-    for order in orders:
-        # Skip if not actually filled
-        avg_fill = order.get("average_fill_price")
-        if avg_fill is None:
+    # ── Step 1: Filter valid filled orders ────────────────────────────────────
+    valid = []
+    for o in orders:
+        if o.get("average_fill_price") is None:
             continue
-
-        state = order.get("state", "")
-        # Some cancelled orders sneak through; skip them
-        if state == "cancelled":
+        if (o.get("state") or "") == "cancelled":
             continue
+        valid.append(o)
 
-        meta = order.get("meta_data") or {}
+    # Sort chronologically — critical for correct FIFO matching
+    valid.sort(key=lambda o: o.get("created_at", ""))
+
+    # ── Step 2: Classify each order as entry or exit ───────────────────────────
+    # Exit signals: reduce_only=True  OR  meta_data.pnl != 0
+    def is_exit_order(o):
+        if o.get("reduce_only") is True:
+            return True
+        meta = o.get("meta_data") or {}
         pnl_str = meta.get("pnl")
-
-        is_exit = False
         if pnl_str is not None:
             try:
-                if float(pnl_str) != 0.0:
-                    is_exit = True
+                return float(pnl_str) != 0.0
             except (ValueError, TypeError):
                 pass
+        return False
 
-        # reduce_only=True is a strong signal for exit orders
-        if order.get("reduce_only") is True:
-            is_exit = True
-
-        if is_exit:
-            exit_orders.append(order)
-        else:
-            entry_orders.append(order)
-
-    # Sort entry orders oldest first for FIFO matching
-    entry_orders.sort(key=lambda o: o.get("created_at", ""))
-
-    used_entries = set()
+    # ── Step 3: FIFO lot queue per symbol ─────────────────────────────────────
+    # ledger[sym] = deque of lots: {qty, price, time, fees, side}
+    ledger = defaultdict(deque)
     closed_trades = []
 
-    for exit_ord in exit_orders:
-        meta = exit_ord.get("meta_data") or {}
-        sym = exit_ord["product_symbol"]
-        exit_side = (exit_ord.get("side") or "").lower()   # sell=long exit, buy=short exit
-        entry_side = "buy" if exit_side == "sell" else "sell"
-        trade_dir = "LONG" if exit_side == "sell" else "SHORT"
+    for order in valid:
+        sym = order.get("product_symbol", "")
+        side = (order.get("side") or "").lower()          # "buy" or "sell"
+        qty  = float(order.get("size") or 0)
+        px   = float(order.get("average_fill_price") or 0)
+        fees = float(order.get("paid_commission") or 0)
+        ts   = order.get("created_at", "")
+        meta = order.get("meta_data") or {}
 
-        qty = float(exit_ord.get("size") or 0)
-        exit_px = float(exit_ord.get("average_fill_price") or 0)
-
-        # PnL and entry price come from meta_data
-        pnl_usd = float(meta.get("pnl") or 0)
-        entry_px_meta = float(meta.get("entry_price") or 0)
-        exit_commission = float(exit_ord.get("paid_commission") or 0)
-        exit_time_str = exit_ord.get("created_at", "")
-
-        # Try to find matching entry order (same symbol, opposite side, any qty, earlier)
-        # We only use the entry order for entry_time — PnL and prices come from meta_data.
-        # Max 60-day window: prevents old unmatched entries pairing with far-future exits.
-        matched_entry = None
-        exit_dt_for_match = _parse_dt(exit_time_str)
-        for idx, ent in enumerate(entry_orders):
-            if idx in used_entries:
-                continue
-            ent_sym = ent.get("product_symbol", "")
-            ent_side = (ent.get("side") or "").lower()
-            ent_time = ent.get("created_at", "")
-            ent_dt = _parse_dt(ent_time)
-            days_diff = (exit_dt_for_match - ent_dt).days
-
-            if (ent_sym == sym
-                    and ent_side == entry_side
-                    and ent_time <= exit_time_str
-                    and 0 <= days_diff <= 60):
-                matched_entry = ent
-                used_entries.add(idx)
-                break
-
-        if matched_entry:
-            entry_time_str = matched_entry.get("created_at", exit_time_str)
-            entry_px = float(matched_entry.get("average_fill_price") or entry_px_meta)
-            entry_commission = float(matched_entry.get("paid_commission") or 0)
+        if not is_exit_order(order):
+            # ── Entry: push lot onto FIFO queue ───────────────────────────────
+            ledger[sym].append({
+                "qty": qty, "price": px,
+                "time": ts, "fees": fees, "side": side,
+            })
         else:
-            # Fall back to meta_data entry price, exit time as entry time
-            entry_time_str = exit_time_str
-            entry_px = entry_px_meta
-            entry_commission = 0.0
+            # ── Exit: consume FIFO lots by qty ────────────────────────────────
+            pnl_usd       = float(meta.get("pnl") or 0)
+            entry_px_meta = float(meta.get("entry_price") or 0)
+            exit_px       = px
+            exit_fees     = fees
+            exit_ts       = ts
 
-        # Use meta_data entry_price if it's more reliable (non-zero)
-        if entry_px_meta > 0:
-            entry_px = entry_px_meta
+            # Entry side is opposite of exit side
+            entry_side = "buy" if side == "sell" else "sell"
+            direction  = "LONG" if side == "sell" else "SHORT"
 
-        total_fees = exit_commission + entry_commission
+            remaining = qty
+            consumed  = []      # lots consumed for this exit
 
-        entry_dt = _parse_dt(entry_time_str)
-        exit_dt = _parse_dt(exit_time_str)
-        duration_hrs = round((exit_dt - entry_dt).total_seconds() / 3600, 1)
+            q = ledger[sym]
+            temp_skipped = []   # lots with wrong side — put back after
 
-        closed_trades.append({
-            "contract": sym,
-            "direction": trade_dir,
-            "qty": qty,
-            "entry_px": round(entry_px, 6),
-            "exit_px": round(exit_px, 6),
-            "entry": _dt_str(entry_dt),
-            "exit": _dt_str(exit_dt),
-            "entry_time": entry_dt.isoformat(),
-            "exit_time": exit_dt.isoformat(),
-            "pnl_usd": round(pnl_usd, 4),
-            "pnl_inr": round(pnl_usd * USD_INR, 2),
-            "entry_val_usd": round(qty * entry_px, 2),
-            "entry_val_inr": round(qty * entry_px * USD_INR, 0),
-            "fees_usd": round(total_fees, 4),
-            "fees_inr": round(total_fees * USD_INR, 2),
-            "duration_hrs": duration_hrs,
-        })
+            while remaining > 0.001 and q:
+                lot = q.popleft()
+                if lot["side"] != entry_side:
+                    temp_skipped.append(lot)
+                    continue
+                if lot["qty"] <= remaining + 0.001:
+                    # Consume entire lot
+                    consumed.append(dict(lot))
+                    remaining -= lot["qty"]
+                else:
+                    # Partial consume — split the lot
+                    consumed.append({**lot, "qty": remaining})
+                    lot["qty"] -= remaining
+                    remaining = 0
+                    q.appendleft(lot)   # put remainder back
+
+            # Restore skipped lots (wrong-side) to front of queue
+            for lot in reversed(temp_skipped):
+                q.appendleft(lot)
+
+            # ── Build trade record ─────────────────────────────────────────────
+            if consumed:
+                total_entry_qty  = sum(l["qty"] for l in consumed)
+                wavg_entry_px    = (sum(l["price"] * l["qty"] for l in consumed)
+                                    / total_entry_qty) if total_entry_qty > 0 else entry_px_meta
+                entry_ts         = consumed[0]["time"]   # earliest lot = FIFO entry time
+                entry_fees       = sum(l["fees"] for l in consumed)
+            else:
+                # No matching lots — fall back to meta_data
+                wavg_entry_px = entry_px_meta if entry_px_meta > 0 else exit_px
+                entry_ts      = exit_ts
+                entry_fees    = 0
+
+            # Always trust meta_data entry_price if available (exchange is authoritative)
+            if entry_px_meta > 0:
+                wavg_entry_px = entry_px_meta
+
+            entry_dt     = _parse_dt(entry_ts)
+            exit_dt      = _parse_dt(exit_ts)
+            duration_hrs = max(0, round((exit_dt - entry_dt).total_seconds() / 3600, 4))
+            total_fees   = exit_fees + entry_fees
+
+            closed_trades.append({
+                "contract":    sym,
+                "direction":   direction,
+                "qty":         round(qty, 6),
+                "entry_px":    round(wavg_entry_px, 6),
+                "exit_px":     round(exit_px, 6),
+                "entry":       _dt_str(entry_dt),
+                "exit":        _dt_str(exit_dt),
+                "entry_time":  entry_dt.isoformat(),
+                "exit_time":   exit_dt.isoformat(),
+                "pnl_usd":     round(pnl_usd, 4),
+                "pnl_inr":     round(pnl_usd * USD_INR, 2),
+                "entry_val_usd": round(qty * wavg_entry_px, 2),
+                "entry_val_inr": round(qty * wavg_entry_px * USD_INR, 0),
+                "fees_usd":    round(total_fees, 4),
+                "fees_inr":    round(total_fees * USD_INR, 2),
+                "duration_hrs": duration_hrs,
+            })
 
     # Filter out options contracts (symbol contains '-' like C-BTC-98200-111224)
     closed_trades = [t for t in closed_trades if "-" not in t["contract"]]
@@ -430,10 +577,17 @@ def compute_metrics(closed_trades, assumed_capital):
     # Period
     start_dt = _parse_dt(closed_trades[0]["entry_time"])
     end_dt = _parse_dt(closed_trades[-1]["exit_time"])
-    years = max((end_dt - start_dt).days / 365.25, 1 / 365)
+    period_days = (end_dt - start_dt).days
+    years = max(period_days / 365.25, 1 / 365)
 
-    # CAGR
-    cagr = ((final_nav / assumed_capital) ** (1.0 / years) - 1) * 100 if assumed_capital > 0 else 0
+    # CAGR — only meaningful if we have at least 30 days of data
+    if assumed_capital > 0 and period_days >= 30:
+        cagr = ((final_nav / assumed_capital) ** (1.0 / years) - 1) * 100
+    elif assumed_capital > 0:
+        # Too short to annualise meaningfully — show simple return instead
+        cagr = (final_nav / assumed_capital - 1) * 100
+    else:
+        cagr = 0
 
     # Sharpe
     sharpe = 0.0
@@ -533,17 +687,22 @@ def compute_metrics(closed_trades, assumed_capital):
     avg_duration = sum(matched_durs) / len(matched_durs) if matched_durs else 0
     total_fees_usd = sum(t["fees_usd"] for t in closed_trades)
 
+    net_pnl_after_fees = total_pnl - total_fees_usd   # gross trade PnL minus commissions
+
     stats = {
-        "total_pnl_usd": round(total_pnl, 2),
+        "total_pnl_usd": round(total_pnl, 2),           # gross PnL from trades (before commission)
         "total_pnl_inr": round(total_pnl * USD_INR, 0),
+        "net_pnl_usd": round(net_pnl_after_fees, 2),    # after commission, before funding
+        "net_pnl_inr": round(net_pnl_after_fees * USD_INR, 0),
         "assumed_capital_usd": assumed_capital,
-        "final_nav_usd": round(final_nav, 2),
+        "final_nav_usd": round(final_nav, 2),            # capital + gross PnL (ignores funding)
         "nav_growth_pct": round((final_nav / assumed_capital - 1) * 100, 1),
         "cagr_pct": round(cagr, 1),
         "sharpe": round(sharpe, 2),
         "max_drawdown_pct": round(max_dd_pct, 1),
         "max_drawdown_usd": round(max_dd_usd, 0),
         "recovery_period_days": recovery_period_days,
+        "period_days": period_days,
         "profit_factor": round(gross_win / gross_loss, 2) if gross_loss > 0 else 999.0,
         "total_trades": len(closed_trades),
         "winning_trades": len(wins),
@@ -587,6 +746,33 @@ def run_account(account):
     account_name = account.get("name", account_id)
     endpoint = account.get("endpoint", "https://api.india.delta.exchange")
     capital = float(account.get("assumed_capital_usd", 10000))
+    profit_transfer_out_inr = float(account.get("profit_transfer_out_inr", 0))
+    profit_transfer_out_usd = round(profit_transfer_out_inr / USD_INR, 2) if profit_transfer_out_inr else 0
+
+    # ── Capital events: deposits and withdrawals after initial investment ─────
+    # Format in accounts.json:
+    # "capital_events": [
+    #   {"date": "2026-04-01", "type": "deposit",    "inr": 100000},
+    #   {"date": "2026-05-15", "type": "withdrawal",  "inr": 50000}
+    # ]
+    capital_events     = account.get("capital_events", [])
+    total_deposits_inr = sum(e["inr"] for e in capital_events if e.get("type") == "deposit")
+    total_withdrawals_inr = sum(e["inr"] for e in capital_events if e.get("type") == "withdrawal")
+    net_events_inr     = total_deposits_inr - total_withdrawals_inr
+    net_events_usd     = round(net_events_inr / USD_INR, 2)
+    # Adjusted capital = initial + deposits - withdrawals
+    assumed_capital_inr = round(capital * USD_INR, 0)
+    net_capital_inr    = assumed_capital_inr + net_events_inr
+    net_capital_usd    = round(net_capital_inr / USD_INR, 2)
+    if net_events_inr != 0:
+        print(f"[{account_id}] Capital events: +₹{total_deposits_inr:,.0f} deposits, "
+              f"-₹{total_withdrawals_inr:,.0f} withdrawals → Net capital: ₹{net_capital_inr:,.0f}")
+        capital = net_capital_usd   # use adjusted capital for all PnL and CAGR calculations
+
+    # Skip inactive accounts entirely
+    if not account.get("active", True):
+        print(f"[{account_id}] Skipping — account marked inactive")
+        return False
 
     api_key = os.environ.get(account.get("api_key_env", ""), "")
     api_secret = os.environ.get(account.get("api_secret_env", ""), "")
@@ -637,11 +823,91 @@ def run_account(account):
     open_trades = build_open_trades_from_positions(positions, all_orders=all_orders)
     print(f"[{account_id}] Open trades: {len(open_trades)}")
 
+    # ── Fetch wallet balance + add unrealized PnL from live positions ──────────
+    print(f"[{account_id}] Fetching wallet balance...")
+    wallet_balance, raw_balances = fetch_wallet_balance(endpoint, api_key, api_secret)
+    if wallet_balance:
+        # Sum unrealized PnL from all open positions to get true mark-to-market equity
+        position_unrealized = sum(
+            float(p.get("unrealized_pnl") or p.get("realized_pnl") or 0)
+            for p in positions
+            if (p.get("unrealized_pnl") is not None)
+        )
+        # If API balance object already has unrealized_pnl, don't double-count
+        if wallet_balance["unrealized_pnl"] == 0 and position_unrealized != 0:
+            wallet_balance["unrealized_pnl"] = round(position_unrealized, 4)
+            wallet_balance["equity"] = round(wallet_balance["balance"] + position_unrealized, 4)
+        print(f"[{account_id}] Wallet: balance=${wallet_balance['balance']:,.2f} "
+              f"| unrealized=${wallet_balance['unrealized_pnl']:,.2f} "
+              f"| equity=${wallet_balance['equity']:,.2f} USDT")
+    else:
+        print(f"[{account_id}] Wallet balance not available")
+
+    # ── Fetch deposit/withdrawal history from API (auto capital tracking) ───────
+    print(f"[{account_id}] Fetching wallet transactions...")
+    wallet_txns = fetch_wallet_transactions(endpoint, api_key, api_secret)
+
+    api_deposited_usd  = wallet_txns["total_deposited_usd"] if wallet_txns else 0
+    api_withdrawn_usd  = wallet_txns["total_withdrawn_usd"] if wallet_txns else 0
+    api_net_capital    = wallet_txns["net_capital_usd"]     if wallet_txns else 0
+
+    if api_net_capital > 0:
+        # API has valid net capital (deposits > withdrawals) — use as primary source
+        # This auto-captures all future deposits and withdrawals without any manual config
+        actual_capital       = round(api_deposited_usd, 2)
+        actual_withdrawn_usd = round(api_withdrawn_usd, 2)
+        capital              = round(api_net_capital, 2)
+        print(f"[{account_id}] Capital from API: deposited=${api_deposited_usd:,.2f} "
+              f"| withdrawn=${api_withdrawn_usd:,.2f} | net=${capital:,.2f}")
+        # Override the manual capital_events — API is always more accurate
+        total_deposits_inr    = round(api_deposited_usd * USD_INR, 0)
+        total_withdrawals_inr = round(api_withdrawn_usd * USD_INR, 0)
+        net_capital_inr       = round(capital * USD_INR, 0)
+    else:
+        # API has no net capital (USDT transfers like Shalini/Vinay, or deposits=withdrawals)
+        # Fall back to assumed_capital + manual capital_events from accounts.json
+        actual_capital       = None
+        actual_withdrawn_usd = 0
+        if api_deposited_usd > 0:
+            print(f"[{account_id}] API deposits cancelled by withdrawals (USDT cycle) — using assumed capital ₹{net_capital_inr:,.0f}")
+        else:
+            print(f"[{account_id}] No deposit records in API — using assumed capital ₹{net_capital_inr:,.0f}")
+
     if not closed_trades:
         print(f"[{account_id}] No closed trades — skipping metrics")
         return False
 
     metrics = compute_metrics(closed_trades, capital)
+
+    # ── Wallet-based NAV (equity = balance + unrealized PnL = true mark-to-market)
+    # equity is the number that matches what you see on the Delta Exchange app live
+    wallet_equity_usd   = wallet_balance["equity"]       if wallet_balance else None
+    wallet_balance_usd  = wallet_balance["balance"]      if wallet_balance else None  # collateral only
+    wallet_balance_inr  = wallet_balance["balance_inr"]  if wallet_balance else None
+    wallet_unrealized   = wallet_balance["unrealized_pnl"] if wallet_balance else 0
+    wallet_nav_growth_pct = None
+
+    wallet_cagr_pct = None
+    if wallet_equity_usd is not None and wallet_equity_usd > 0:
+        wallet_nav_growth_pct = round((wallet_equity_usd / capital - 1) * 100, 1)
+        # Wallet-based CAGR — override the trade-log CAGR with wallet equity
+        period_days = metrics["stats"].get("period_days", 0)
+        if period_days >= 30:
+            years = period_days / 365.0
+            wallet_cagr_pct = round(((wallet_equity_usd / capital) ** (1.0 / years) - 1) * 100, 1)
+        else:
+            wallet_cagr_pct = wallet_nav_growth_pct   # simple return for short periods
+        # Override trade-log CAGR in stats with wallet-based CAGR
+        metrics["stats"]["cagr_pct"] = wallet_cagr_pct
+        print(f"[{account_id}] Equity: ${wallet_equity_usd:,.2f} "
+              f"(balance=${wallet_balance_usd:,.2f} + unrealized=${wallet_unrealized:,.2f}) "
+              f"| Return: {wallet_nav_growth_pct}% | Wallet CAGR: {wallet_cagr_pct}%")
+
+    # ── Wallet-based Net PnL = equity - starting_capital (true source of truth) ─
+    wallet_net_pnl_usd = round(wallet_equity_usd - capital, 2) if wallet_equity_usd is not None else None
+    wallet_net_pnl_inr = round(wallet_net_pnl_usd * USD_INR, 0) if wallet_net_pnl_usd is not None else None
+    # Use equity INR: equity_usd * rate (balance_inr is only for collateral portion)
+    wallet_equity_inr  = round(wallet_equity_usd * USD_INR, 0) if wallet_equity_usd is not None else wallet_balance_inr
 
     now_iso = datetime.now(timezone.utc).isoformat()
     dashboard = {
@@ -651,6 +917,21 @@ def run_account(account):
             "last_updated": now_iso,
             "usd_inr_rate": USD_INR,
             "assumed_capital_usd": capital,
+            "assumed_capital_inr": net_capital_inr,
+            "profit_transfer_out_inr": profit_transfer_out_inr if profit_transfer_out_inr else None,
+            "total_deposits_inr": round(total_deposits_inr, 0) if total_deposits_inr else None,
+            "total_withdrawals_inr": round(total_withdrawals_inr, 0) if total_withdrawals_inr else None,
+            "net_capital_inr": net_capital_inr,
+            "capital_source": "api_transactions" if api_net_capital > 0 else "manual_config",
+            "wallet_balance_usd": wallet_equity_usd,        # equity = balance + unrealized PnL
+            "wallet_balance_inr": wallet_equity_inr,
+            "wallet_collateral_usd": wallet_balance_usd,    # collateral only (for reference)
+            "wallet_unrealized_usd": wallet_unrealized,
+            "wallet_net_pnl_usd": wallet_net_pnl_usd,
+            "wallet_net_pnl_inr": wallet_net_pnl_inr,
+            "wallet_nav_growth_pct": wallet_nav_growth_pct,
+            "actual_capital_usd": actual_capital,
+            "actual_capital_inr": round(actual_capital * USD_INR, 0) if actual_capital else None,
             "active": account.get("active", True),
             "data_source": "orders_history",
         },
@@ -679,9 +960,19 @@ def combine_accounts(accounts):
     all_closed = []
     all_open = []
     total_capital = 0.0
+    total_capital_inr = 0.0
     account_names = []
+    # Aggregate wallet data across accounts
+    combined_wallet_equity_usd = 0.0
+    combined_wallet_equity_inr = 0.0
+    combined_wallet_net_pnl_usd = 0.0
+    combined_wallet_net_pnl_inr = 0.0
+    has_wallet_data = False
 
     for acc in accounts:
+        # Skip inactive accounts from combined view
+        if not acc.get("active", True):
+            continue
         acc_id = acc["id"]
         data_file = os.path.join("data", acc_id, "dashboard_data.json")
         if not os.path.exists(data_file):
@@ -690,9 +981,29 @@ def combine_accounts(accounts):
         with open(data_file) as f:
             d = json.load(f)
 
+        # Skip if no trades (empty/reset account)
+        if not d.get("trades"):
+            continue
+
         acc_name = acc.get("name", acc_id)
         account_names.append(acc_name)
-        total_capital += float(d.get("meta", {}).get("assumed_capital_usd", 10000))
+        acc_meta = d.get("meta", {})
+        acc_capital_usd = float(acc.get("assumed_capital_usd", acc_meta.get("assumed_capital_usd", 10000)))
+        acc_capital_inr = float(acc_meta.get("net_capital_inr") or acc_meta.get("assumed_capital_inr") or (acc_capital_usd * USD_INR))
+        total_capital     += acc_capital_usd
+        total_capital_inr += acc_capital_inr
+
+        # Aggregate wallet equity
+        w_eq_usd = acc_meta.get("wallet_balance_usd")
+        w_eq_inr = acc_meta.get("wallet_balance_inr")
+        w_pnl_usd = acc_meta.get("wallet_net_pnl_usd")
+        w_pnl_inr = acc_meta.get("wallet_net_pnl_inr")
+        if w_eq_usd is not None:
+            combined_wallet_equity_usd += w_eq_usd
+            combined_wallet_equity_inr += (w_eq_inr or w_eq_usd * USD_INR)
+            combined_wallet_net_pnl_usd += (w_pnl_usd or 0)
+            combined_wallet_net_pnl_inr += (w_pnl_inr or 0)
+            has_wallet_data = True
 
         for t in d.get("trades", []):
             t2 = dict(t)
@@ -716,6 +1027,21 @@ def combine_accounts(accounts):
 
     metrics = compute_metrics(all_closed, total_capital)
 
+    # Combined wallet NAV
+    combined_wallet_nav_growth = None
+    combined_wallet_cagr = None
+    if has_wallet_data and total_capital > 0:
+        combined_wallet_nav_growth = round((combined_wallet_equity_usd / total_capital - 1) * 100, 1)
+        period_days = metrics["stats"].get("period_days", 0)
+        if period_days >= 30:
+            years = period_days / 365.0
+            combined_wallet_cagr = round(((combined_wallet_equity_usd / total_capital) ** (1.0 / years) - 1) * 100, 1)
+        else:
+            combined_wallet_cagr = combined_wallet_nav_growth
+        metrics["stats"]["cagr_pct"] = combined_wallet_cagr
+        print(f"[combined] Wallet equity: ${combined_wallet_equity_usd:,.2f} | "
+              f"Return: {combined_wallet_nav_growth}% | CAGR: {combined_wallet_cagr}%")
+
     now_iso = datetime.now(timezone.utc).isoformat()
     combined = {
         "meta": {
@@ -725,6 +1051,13 @@ def combine_accounts(accounts):
             "last_updated": now_iso,
             "usd_inr_rate": USD_INR,
             "assumed_capital_usd": total_capital,
+            "assumed_capital_inr": round(total_capital_inr, 0),
+            "net_capital_inr": round(total_capital_inr, 0),
+            "wallet_balance_usd": round(combined_wallet_equity_usd, 2) if has_wallet_data else None,
+            "wallet_balance_inr": round(combined_wallet_equity_inr, 0) if has_wallet_data else None,
+            "wallet_net_pnl_usd": round(combined_wallet_net_pnl_usd, 2) if has_wallet_data else None,
+            "wallet_net_pnl_inr": round(combined_wallet_net_pnl_inr, 0) if has_wallet_data else None,
+            "wallet_nav_growth_pct": combined_wallet_nav_growth,
             "active": True,
         },
         "stats": metrics["stats"],
@@ -753,8 +1086,10 @@ def write_accounts_list(accounts, has_combined=False):
         items.append({"id": "combined", "name": "All Accounts (Combined)",
                       "active": True, "is_combined": True})
     for acc in accounts:
-        items.append({"id": acc["id"], "name": acc.get("name", acc["id"]),
-                      "active": acc.get("active", True), "is_combined": False})
+        # Only include active accounts in the dashboard dropdown
+        if acc.get("active", True):
+            items.append({"id": acc["id"], "name": acc.get("name", acc["id"]),
+                          "active": True, "is_combined": False})
 
     with open("accounts_list.json", "w") as f:
         json.dump(items, f, indent=2)

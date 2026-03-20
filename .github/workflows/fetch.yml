@@ -1,0 +1,76 @@
+name: Fetch Delta Exchange Trades
+
+# ─── TRIGGERS ─────────────────────────────────────────────────────────────────
+on:
+  schedule:
+    # Runs every 4 hours (UTC) — 6 times a day
+    # Format: minute hour day month weekday (UTC)
+    - cron: '0 */4 * * *'
+
+  # Allows manual trigger from the Actions tab in GitHub
+  workflow_dispatch:
+
+# ─── PERMISSIONS ──────────────────────────────────────────────────────────────
+permissions:
+  contents: write   # Needed to commit updated JSON back to repo
+
+# ─── JOB ──────────────────────────────────────────────────────────────────────
+jobs:
+  fetch-and-update:
+    name: Fetch Trades & Update Dashboard
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # 1. Checkout the repository
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1   # Shallow clone for speed
+
+      # 2. Set up Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: pip install requests
+
+      # 4. Run the fetcher
+      #    API keys come from GitHub Secrets → never hardcoded in code or YAML
+      #    To add secrets: GitHub repo → Settings → Secrets and variables → Actions
+      #    Add secrets named exactly as below (case-sensitive)
+      - name: Run delta_fetcher.py
+        env:
+          # ── Active accounts ──────────────────────────────────────────────────
+          SHALINI_API_KEY:    ${{ secrets.SHALINI_API_KEY }}
+          SHALINI_API_SECRET: ${{ secrets.SHALINI_API_SECRET }}
+          MOM_API_KEY:        ${{ secrets.MOM_API_KEY }}
+          MOM_API_SECRET:     ${{ secrets.MOM_API_SECRET }}
+          VINAY_API_KEY:      ${{ secrets.VINAY_API_KEY }}
+          VINAY_API_SECRET:   ${{ secrets.VINAY_API_SECRET }}
+          # ── Nataraj — inactive, will activate when new account goes live ────
+          NATARAJ_API_KEY:    ${{ secrets.NATARAJ_API_KEY }}
+          NATARAJ_API_SECRET: ${{ secrets.NATARAJ_API_SECRET }}
+        run: python delta_fetcher.py
+
+      # 5. Commit the updated JSON files back to the repo
+      #    The dashboard reads these files from the repo via GitHub Pages
+      - name: Commit updated data files
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/ accounts_list.json
+          # Only commit if there are actual changes (avoids empty commits)
+          if git diff --staged --quiet; then
+            echo "No changes to commit — data is up to date."
+          else
+            git commit -m "chore: auto-update dashboard data [skip ci]
+
+            Updated: $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+            echo "Committed and pushed updated data."
+          fi

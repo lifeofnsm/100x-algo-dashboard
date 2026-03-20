@@ -5,12 +5,13 @@ run_all.ps1
 __pycache__/
 *.pyc
 
-# Debug files
+# Debug / dev-only files
 debug_*.py
 debug_output.txt
+test_wallet.py
+serve.py
 
-# Raw order cache (large, not needed for dashboard)
-data/*/orders_store.json
+# orders_store.json is kept in repo so GitHub Actions doesn't re-fetch from scratch
 
 # Secrets
 .env

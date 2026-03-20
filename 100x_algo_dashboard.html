@@ -19,14 +19,47 @@
   --shadow:none;--tab-bg:var(--bg);--radius:8px;
 }
 [data-theme="light"]{
-  --bg:#f8f9fa;--bg3:#f1f3f5;
-  --card:#ffffff;--card2:#fafbfc;--border:#e5e7eb;
-  --gold:#d97706;--gold-dim:rgba(217,119,6,.08);--gold-glow:rgba(217,119,6,.12);
-  --green:#00897b;--green-dim:rgba(0,137,123,.08);
-  --red:#e53935;--red-dim:rgba(229,57,53,.08);
-  --blue:#1d6fd8;--text:#111827;--text2:#6b7280;--text3:#9ca3af;
-  --shadow:0 1px 4px rgba(0,0,0,.06);--tab-bg:#f8f9fa;--radius:8px;
+  /* Zerodha Kite-inspired: pure white, clean, minimal */
+  --bg:#ffffff;--bg3:#f4f6f9;
+  --card:#f8f9fb;--card2:#f4f6f9;--border:#e4e7ec;
+  --gold:#387ed1;--gold-dim:rgba(56,126,209,.07);--gold-glow:rgba(56,126,209,.15);
+  --green:#1a9c3e;--green-dim:rgba(26,156,62,.07);
+  --red:#d63031;--red-dim:rgba(214,48,49,.07);
+  --blue:#387ed1;--text:#1a1a2e;--text2:#666e7a;--text3:#b0b8c4;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --tab-bg:#ffffff;--radius:6px;
 }
+/* Zerodha light-mode specific overrides */
+[data-theme="light"] .kcard{border-left:3px solid var(--border)}
+[data-theme="light"] .kcard.g{border-left-color:var(--green)}
+[data-theme="light"] .kcard.r{border-left-color:var(--red)}
+[data-theme="light"] .kcard.b{border-left-color:var(--blue)}
+[data-theme="light"] .kcard.go{border-left-color:var(--gold)}
+[data-theme="light"] .kcard::before{display:none}
+[data-theme="light"] .kv{font-size:20px}
+[data-theme="light"] .tabs-nav{border-bottom:2px solid var(--border)}
+[data-theme="light"] .tb.active{border-bottom-color:var(--blue);color:var(--blue)}
+[data-theme="light"] .tb.active{color:var(--blue)}
+[data-theme="light"] .stitle h2 span{color:var(--blue)}
+[data-theme="light"] .b-icon{background:var(--blue)}
+[data-theme="light"] .acc-select:hover,[data-theme="light"] .acc-select:focus{border-bottom-color:var(--blue);color:var(--blue)}
+[data-theme="light"] .fb:hover,[data-theme="light"] .fb.active{background:var(--gold-dim);border-color:var(--blue);color:var(--blue)}
+[data-theme="light"] .export-btn{border-color:rgba(56,126,209,.4);color:var(--blue);background:var(--gold-dim)}
+[data-theme="light"] .foot span{color:var(--blue)}
+[data-theme="light"] .edesc strong{color:var(--blue)}
+[data-theme="light"] .sec::before{background:var(--blue)}
+[data-theme="light"] .hdr{background:#fff;border-bottom:1px solid #e4e7ec !important;box-shadow:none}
+[data-theme="light"] .wrap{padding-top:0;padding-left:32px;padding-right:32px}
+[data-theme="light"] body{background:#fff}
+[data-theme="light"] .bg-gold{background:rgba(56,126,209,.08);color:var(--blue);border-color:rgba(56,126,209,.25)}
+[data-theme="light"] .badge.bg-gold{background:rgba(56,126,209,.08);color:var(--blue);border-color:rgba(56,126,209,.25)}
+[data-theme="light"] tbody tr:hover{background:rgba(56,126,209,.04)}
+[data-theme="light"] th:hover,[data-theme="light"] th.sorted{color:var(--blue)}
+[data-theme="light"] .acc-card:hover,[data-theme="light"] .acc-card.sel{border-color:var(--blue)}
+[data-theme="light"] .acc-card.sel{background:var(--gold-dim)}
+[data-theme="light"] .pb.active,[data-theme="light"] .pb:hover{background:var(--gold-dim);border-color:var(--blue);color:var(--blue)}
+[data-theme="light"] .live-badge{background:rgba(26,156,62,.08);border-color:var(--green);color:var(--green)}
+[data-theme="light"] .ld{background:var(--green)}
 html{scroll-behavior:smooth}
 body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;transition:background .3s,color .3s}
 .wrap{max-width:1440px;margin:0 auto;padding:0 24px 60px;position:relative}
@@ -269,6 +302,18 @@ canvas{max-width:100%}
 .acc-card{background:var(--card);border:1px solid var(--border);border-radius:11px;
   padding:14px 18px;flex:1;min-width:160px;cursor:pointer;
   transition:border-color .2s,transform .15s,background .3s;box-shadow:var(--shadow)}
+/* ACCOUNT BREAKDOWN PILLS (combined view, inside NAV chart header) */
+.acc-breakdown{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;width:100%}
+.acc-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 10px 3px 8px;
+  border-radius:20px;background:var(--card2);border:1px solid var(--border);
+  cursor:pointer;transition:border-color .15s,background .15s;white-space:nowrap}
+.acc-pill:hover{border-color:var(--gold);background:var(--gold-dim)}
+.acc-pill .ap-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);flex-shrink:0}
+.acc-pill .ap-name{font-weight:700;color:var(--text);font-size:11px}
+.acc-pill .ap-pnl{font-size:11px;font-weight:600}
+.acc-pill .ap-pnl.pos{color:var(--green)}.acc-pill .ap-pnl.neg{color:var(--red)}
+.acc-pill .ap-sep{color:var(--text3);font-size:10px}
+.acc-pill .ap-meta{color:var(--text2);font-size:10px}
 .acc-card:hover,.acc-card.sel{border-color:var(--gold);transform:translateY(-1px)}
 .acc-card.sel{background:var(--gold-dim)}
 .ac-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px}
@@ -277,12 +322,58 @@ canvas{max-width:100%}
 .ac-meta{font-size:10px;color:var(--text2);margin-top:3px}
 /* MOBILE */
 @media(max-width:768px){
-  .kpi-grid{grid-template-columns:repeat(2,1fr)}
-  .hdr-right{gap:8px}
-  .stitle h2{font-size:20px}
+  .wrap{padding:0 12px 40px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .kcard{padding:12px 14px}
+  .kv{font-size:18px}
+  .kl{font-size:9px}
+  .ks{font-size:10px}
+  .hdr-right{gap:6px}
+  .hdr-top{gap:10px}
+  .stitle h2{font-size:18px}
+  .stitle p{font-size:10.5px}
   .two-col,.three-col{grid-template-columns:1fr}
-  .search-box{width:140px}
+  .search-box{width:120px}
   .acc-strip{flex-direction:column}
+  .tabs-nav{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs-nav::-webkit-scrollbar{display:none}
+  .tb{padding:10px 14px;white-space:nowrap;font-size:11.5px}
+  .log-toolbar{flex-direction:column;align-items:flex-start;gap:8px}
+  .log-search{width:100%}
+  .search-box{width:100%}
+  .fbtns{flex-wrap:wrap}
+  .date-range-wrap{width:100%;flex-wrap:wrap}
+  .dr-input{width:calc(50% - 3px);flex:1}
+  .log-stats-bar{gap:10px;padding:10px 12px}
+  .lsb-sep{display:none}
+  .lsb-item{min-width:calc(50% - 10px)}
+  .bgs{gap:5px}
+  .badge{font-size:9px;padding:2px 6px}
+  .period{font-size:10px}
+  .b-text h1{font-size:16px}
+  .b-icon{width:30px;height:30px;font-size:9px}
+  .export-btn{padding:5px 10px;font-size:10px}
+  .twrap{border-radius:8px}
+  .hdr{padding:14px 0 12px}
+  .acc-card{padding:12px 14px}
+  .ac-pnl{font-size:16px}
+  /* Chart heights on mobile */
+  #cNav{height:190px !important;max-height:190px}
+  #cDD{height:100px !important;max-height:100px}
+  #cMon,#cDist{height:170px !important;max-height:170px}
+  /* Prevent chart overflow */
+  .cc{overflow:hidden}
+  .acc-breakdown{gap:4px}
+  .acc-pill{font-size:10px;padding:2px 7px 2px 6px}
+  .acc-pill .ap-name{font-size:10px}
+  .acc-pill .ap-pnl{font-size:10px}
+}
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr 1fr;gap:6px}
+  .kv{font-size:16px}
+  .hdr-right .period,.hdr-right .live-badge{display:none}
+  .stitle h2{font-size:16px}
+  .logout-btn span{display:none}
 }
 /* ── PASSWORD GATE ─────────────────────────────────────────────────────── */
 .pw-gate{position:fixed;inset:0;background:#0d1017;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column}
@@ -388,7 +479,7 @@ canvas{max-width:100%}
         <div class="ki">&#128200;</div>
         <div class="kl">NAV Growth</div>
         <div class="kv green" id="k-nav-growth">—</div>
-        <div class="ks"><span id="k-capital">—</span> &rarr; <span class="up" id="k-final-nav">—</span></div>
+        <div class="ks">Capital: <span id="k-capital">—</span> &nbsp;&middot;&nbsp; NAV: <span class="up" id="k-final-nav">—</span></div>
       </div>
       <div class="kcard">
         <div class="ki">&#128640;</div>
@@ -432,6 +523,7 @@ canvas{max-width:100%}
       <div class="ch">
         <div class="sec" style="margin-bottom:0">NAV Growth Curve <span class="sub">&mdash; cumulative portfolio value</span></div>
         <div class="bgs" id="navBadges"></div>
+        <div class="acc-breakdown" id="accBreakdown" style="display:none"></div>
       </div>
       <canvas id="cNav" height="82"></canvas>
     </div>
@@ -667,14 +759,14 @@ function isLight() { return root.getAttribute('data-theme') === 'light'; }
 
 function chartColors() {
   return {
-    gold:    isLight() ? '#c89c00' : '#F5C518',
-    green:   isLight() ? '#00a372' : '#00e5a0',
-    red:     isLight() ? '#d92f4b' : '#ff4d6a',
-    blue:    isLight() ? '#1a7fdb' : '#4da6ff',
-    gridLine: isLight() ? 'rgba(180,195,220,.4)' : 'rgba(30,45,74,.4)',
+    gold:    isLight() ? '#387ed1' : '#F5C518',
+    green:   isLight() ? '#1a9c3e' : '#00e5a0',
+    red:     isLight() ? '#d63031' : '#ff4d6a',
+    blue:    isLight() ? '#387ed1' : '#4da6ff',
+    gridLine: isLight() ? 'rgba(0,0,0,.018)' : 'rgba(30,45,74,.4)',
     cardBg:  isLight() ? '#ffffff' : '#0d1526',
-    text2:   isLight() ? '#4b5a72' : '#8a9ab8',
-    border:  isLight() ? '#d0daea' : '#1e2d4a',
+    text2:   isLight() ? '#666e7a' : '#8a9ab8',
+    border:  isLight() ? '#e1e4e8' : '#1e2d4a',
   };
 }
 
@@ -719,9 +811,31 @@ function ttConfig() {
 }
 function scaleConfig() {
   const C = chartColors();
+  const mob = window.innerWidth < 768;
+  const xTicks = {
+    color: C.text2,
+    maxTicksLimit: mob ? 4 : 7,
+    maxRotation: 0,
+    font: { size: mob ? 9 : 11 },
+    callback: function(val) {
+      const lbl = this.getLabelForValue ? this.getLabelForValue(val) : val;
+      if (!lbl) return '';
+      if (mob && typeof lbl === 'string' && lbl.length === 10) {
+        // "2025-01-09" → "Jan '25" style on mobile
+        const d = new Date(lbl);
+        return isNaN(d) ? lbl.slice(5) : d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+      }
+      return lbl;
+    }
+  };
+  const yTicks = {
+    color: C.text2,
+    maxTicksLimit: mob ? 4 : 6,
+    font: { size: mob ? 9 : 11 }
+  };
   return {
-    x: { grid: { color: C.gridLine }, ticks: { color: C.text2 } },
-    y: { grid: { color: C.gridLine }, ticks: { color: C.text2 } }
+    x: { grid: { color: C.gridLine }, ticks: xTicks },
+    y: { grid: { color: C.gridLine }, ticks: yTicks }
   };
 }
 
@@ -898,12 +1012,12 @@ function populateDashboard(data) {
   document.getElementById('sfClearBtn').style.display = 'none';
   document.getElementById('sfCount').textContent = '';
 
-  // ── ACCOUNT COMPARISON STRIP (combined view only) ─────────────────────────
-  const strip = document.getElementById('accStrip');
+  // ── ACCOUNT COMPARISON STRIP — hidden; breakdown shown in NAV chart instead ─
+  document.getElementById('accStrip').style.display = 'none';
+
+  // ── ACCOUNT BREAKDOWN PILLS (combined view only, inside NAV chart header) ──
+  const breakdownDiv = document.getElementById('accBreakdown');
   if (isCombined && allAccountsList.length > 0) {
-    strip.style.display = 'flex';
-    const accIncluded = meta.accounts_included || [];
-    // Generate strip cards from the trade data grouped by account
     const accMap = {};
     (data.trades || []).forEach(t => {
       const name = t.account || 'Unknown';
@@ -912,27 +1026,29 @@ function populateDashboard(data) {
       accMap[name].trades += 1;
       if (t.pnl_usd > 0) accMap[name].wins += 1;
     });
-    // Combined summary card first
-    let html = '<div class="acc-card sel">'
-      + '<div class="ac-name">⬡ All Accounts</div>'
-      + '<div class="ac-pnl' + (S.total_pnl_usd < 0 ? ' neg' : '') + '">'
-        + riSgn(S.total_pnl_inr) + '</div>'
-      + '<div class="ac-meta">' + S.total_trades + ' trades &middot; ' + S.win_rate_pct + '% WR &middot; CAGR ' + S.cagr_pct + '%</div>'
-      + '</div>';
-    // Per-account cards
-    Object.entries(accMap).forEach(([name, d]) => {
-      const wr = d.trades > 0 ? (d.wins / d.trades * 100).toFixed(1) : 0;
+    const dotColors = ['#387ed1','#f39c12','#9b59b6','#1a9c3e'];
+    let pillHtml = '';
+    Object.entries(accMap).forEach(([name, d], i) => {
+      const wr = d.trades > 0 ? (d.wins / d.trades * 100).toFixed(0) : 0;
+      const pnlInr = Math.round(d.pnl * INR_RATE);
+      const pnlCls = pnlInr >= 0 ? 'pos' : 'neg';
+      const pnlStr = (pnlInr >= 0 ? '+' : '') + ri(pnlInr);
       const acc = allAccountsList.find(a => a.name === name);
-      html += '<div class="acc-card" onclick="' + (acc ? 'switchAccount(\'' + acc.id + '\')' : '') + '">'
-        + '<div class="ac-name">' + name + '</div>'
-        + '<div class="ac-pnl' + (d.pnl < 0 ? ' neg' : '') + '">'
-          + riSgn(d.pnl * INR_RATE) + '</div>'
-        + '<div class="ac-meta">' + d.trades + ' trades &middot; ' + wr + '% WR</div>'
+      const onclick = acc ? 'switchAccount(\'' + acc.id + '\')' : '';
+      const color = dotColors[i % dotColors.length];
+      pillHtml += '<div class="acc-pill" onclick="' + onclick + '" title="Click to view ' + name + ' account">'
+        + '<span class="ap-dot" style="background:' + color + '"></span>'
+        + '<span class="ap-name">' + name + '</span>'
+        + '<span class="ap-sep">·</span>'
+        + '<span class="ap-pnl ' + pnlCls + '">' + pnlStr + '</span>'
+        + '<span class="ap-sep">·</span>'
+        + '<span class="ap-meta">' + d.trades + 'T&nbsp;' + wr + '%WR</span>'
         + '</div>';
     });
-    strip.innerHTML = html;
+    breakdownDiv.innerHTML = pillHtml;
+    breakdownDiv.style.display = 'flex';
   } else {
-    strip.style.display = 'none';
+    breakdownDiv.style.display = 'none';
   }
 
   // ── TRADE LOG ─────────────────────────────────────────────────────────────
@@ -960,11 +1076,27 @@ function renderStatsSection(data) {
   const totalTrades = S.total_trades || 0;
 
   // KPI Cards
-  document.getElementById('k-pnl-usd').textContent = riSgn(S.total_pnl_inr || 0);
-  document.getElementById('k-pnl-inr').textContent = ((S.total_pnl_inr || 0) >= 0 ? 'Profit' : 'Loss') + ' \u00b7 ' + (S.win_rate_pct || 0) + '% WR';
-  document.getElementById('k-nav-growth').textContent = ((S.nav_growth_pct || 0) >= 0 ? '+' : '') + (S.nav_growth_pct || 0) + '%';
-  document.getElementById('k-capital').textContent = ri((S.assumed_capital_usd || 10000) * INR_RATE);
-  document.getElementById('k-final-nav').textContent = ru(S.final_nav_usd || 0);
+  const meta = data.meta || {};
+  // Use wallet-based net PnL when available (wallet_balance - starting_capital = true net PnL)
+  const displayPnlInr = (meta.wallet_net_pnl_inr !== null && meta.wallet_net_pnl_inr !== undefined)
+    ? meta.wallet_net_pnl_inr : (S.total_pnl_inr || 0);
+  document.getElementById('k-pnl-usd').textContent = riSgn(displayPnlInr);
+  document.getElementById('k-pnl-inr').textContent = (displayPnlInr >= 0 ? 'Profit' : 'Loss') + ' \u00b7 ' + (S.win_rate_pct || 0) + '% WR';
+  // Use wallet-based return if available (most accurate), else computed
+  const retPct = (meta.wallet_nav_growth_pct !== null && meta.wallet_nav_growth_pct !== undefined)
+    ? meta.wallet_nav_growth_pct : (S.nav_growth_pct || 0);
+  const retEl = document.getElementById('k-nav-growth');
+  retEl.textContent = (retPct >= 0 ? '+' : '') + retPct + '%';
+  retEl.className = 'kv ' + (retPct >= 0 ? 'green' : 'red');
+  // Capital KPI: show actual capital from transactions if available, else assumed
+  const displayCapital = meta.actual_capital_inr || meta.assumed_capital_inr || ((S.assumed_capital_usd || 10000) * INR_RATE);
+  document.getElementById('k-capital').textContent = ri(displayCapital);
+  // Prefer wallet balance (total USD in account) over computed NAV
+  if (meta.wallet_balance_usd) {
+    document.getElementById('k-final-nav').textContent = ri(meta.wallet_balance_inr);
+  } else {
+    document.getElementById('k-final-nav').textContent = ru(S.final_nav_usd || 0);
+  }
   document.getElementById('k-cagr').textContent = (S.cagr_pct || 0) + '%';
   document.getElementById('k-sharpe').textContent = (S.sharpe !== undefined && S.sharpe !== null) ? S.sharpe : '—';
   document.getElementById('k-recovery').textContent =
@@ -981,11 +1113,42 @@ function renderStatsSection(data) {
   document.getElementById('k-fees-inr').textContent = (S.fees_pct_of_pnl || 0) + '% of PnL';
   document.getElementById('k-fees-pct').textContent = (S.fees_pct_of_pnl || 0) + '%';
 
-  // NAV badges
-  document.getElementById('navBadges').innerHTML =
-    '<span class="badge bg-gold">Start: ' + ru(S.assumed_capital_usd || 10000) + '</span>' +
-    '<span class="badge bg-green">Final: ' + ru(S.final_nav_usd || 0) + '</span>' +
-    '<span class="badge bg-green">' + ((S.nav_growth_pct || 0) >= 0 ? '+' : '') + (S.nav_growth_pct || 0) + '%</span>';
+  // NAV badges — Capital → Deposits/Withdrawals (if any) → Net PnL → Wallet NAV
+  // wallet_balance = available_balance + position_margin (total USD, confirmed from API)
+  // net_capital_inr = assumed_capital + deposits - withdrawals (always correct denominator)
+  const baseCapInr   = meta.assumed_capital_inr || Math.round((S.assumed_capital_usd || 10000) * INR_RATE);
+  const actualCapInr = meta.net_capital_inr || meta.actual_capital_inr || baseCapInr;
+  const walletBalInr    = meta.wallet_balance_inr;
+  const walletNetPnlInr = meta.wallet_net_pnl_inr;
+  const depositsInr     = meta.total_deposits_inr;
+  const withdrawalsInr  = meta.total_withdrawals_inr;
+
+  let navBadgeHtml = '<span class="badge bg-gold">Capital: ' + ri(baseCapInr) + '</span>';
+  if (depositsInr)    navBadgeHtml += '<span class="badge bg-blue">Deposit: +' + ri(depositsInr) + '</span>';
+  if (withdrawalsInr) navBadgeHtml += '<span class="badge bg-red">Withdrawal: \u2212' + ri(withdrawalsInr) + '</span>';
+  if (depositsInr || withdrawalsInr) {
+    navBadgeHtml += '<span class="badge bg-gold" style="opacity:0.75">Net Capital: ' + ri(actualCapInr) + '</span>';
+  }
+
+  if (walletBalInr) {
+    // Net PnL = wallet balance - starting capital (true source of truth)
+    if (walletNetPnlInr !== null && walletNetPnlInr !== undefined) {
+      navBadgeHtml += '<span class="badge ' + (walletNetPnlInr >= 0 ? 'bg-green' : 'bg-red') + '">Net PnL: ' +
+        (walletNetPnlInr >= 0 ? '+' : '') + ri(walletNetPnlInr) + '</span>';
+    }
+    const walletGrowth = meta.wallet_nav_growth_pct;
+    const wColor = walletGrowth >= 0 ? 'bg-green' : 'bg-red';
+    navBadgeHtml += '<span class="badge ' + wColor + '" style="font-weight:700">Wallet NAV: ' +
+      ri(walletBalInr) + ' (' + (walletGrowth >= 0 ? '+' : '') + walletGrowth + '%)</span>';
+  } else {
+    const finalNavInr = Math.round((S.final_nav_usd || 0) * INR_RATE);
+    const tradePnlInr = S.total_pnl_inr || 0;
+    navBadgeHtml += '<span class="badge ' + (tradePnlInr >= 0 ? 'bg-green' : 'bg-red') + '">Trade PnL: ' +
+      (tradePnlInr >= 0 ? '+' : '') + ri(tradePnlInr) + '</span>';
+    navBadgeHtml += '<span class="badge bg-green" style="font-weight:700">Computed NAV: ' +
+      ri(finalNavInr) + '</span>';
+  }
+  document.getElementById('navBadges').innerHTML = navBadgeHtml;
   document.getElementById('ddBadges').innerHTML =
     '<span class="badge bg-red">Max DD: ' + (S.max_drawdown_pct || 0) + '%</span>';
 
@@ -1249,7 +1412,8 @@ function clearStatsFilter() {
 // ── DURATION FORMAT HELPER ─────────────────────────────────────────────────────
 function fmtDur(hrs) {
   if (!hrs || hrs === 0) return '< 1s';
-  if (hrs < 1/60) return '< 1m';
+  const secs = hrs * 3600;
+  if (secs < 60) return Math.round(secs) + 's';
   if (hrs < 1) return Math.round(hrs * 60) + 'm';
   if (hrs < 24) return hrs.toFixed(1) + 'h';
   const d = Math.floor(hrs / 24);
@@ -1261,6 +1425,7 @@ function fmtDur(hrs) {
 function rebuildCharts(data) {
   Object.values(charts).forEach(ch => { if (ch) ch.destroy(); });
   charts = {};
+  const isMob = window.innerWidth < 768;
   const C = chartColors();
   Chart.defaults.color = C.text2;
 
@@ -1288,7 +1453,7 @@ function rebuildCharts(data) {
         borderWidth: 2, fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 4
       }] },
       options: {
-        responsive: true,
+        responsive: true, maintainAspectRatio: !isMob,
         interaction: { mode: 'index', intersect: false },
         plugins: { legend: { display: false }, tooltip: { ...ttConfig(),
           callbacks: {
@@ -1322,7 +1487,7 @@ function rebuildCharts(data) {
         borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 4
       }] },
       options: {
-        responsive: true,
+        responsive: true, maintainAspectRatio: !isMob,
         interaction: { mode: 'index', intersect: false },
         plugins: { legend: { display: false }, tooltip: { ...ttConfig(),
           callbacks: { label: ctx => ' DD: ' + ctx.raw.toFixed(2) + '%' }
@@ -1347,7 +1512,8 @@ function rebuildCharts(data) {
         borderRadius: 5, borderSkipped: false
       }] },
       options: {
-        responsive: true, plugins: { legend: { display: false }, tooltip: { ...ttConfig(),
+        responsive: true, maintainAspectRatio: !isMob,
+        plugins: { legend: { display: false }, tooltip: { ...ttConfig(),
           callbacks: {
             label: ctx => ' PnL: ' + riSgn(ctx.raw),
             afterLabel: ctx => {
@@ -1377,10 +1543,11 @@ function rebuildCharts(data) {
         borderRadius: 4, borderSkipped: false
       }] },
       options: {
-        responsive: true, plugins: { legend: { display: false }, tooltip: { ...ttConfig(),
+        responsive: true, maintainAspectRatio: !isMob,
+        plugins: { legend: { display: false }, tooltip: { ...ttConfig(),
           callbacks: { label: ctx => ' Count: ' + ctx.raw }
         }},
-        scales: { ...scaleConfig(), x: { ...scaleConfig().x, ticks: { ...scaleConfig().x.ticks, maxRotation: 45, font: { size: 9 } } } }
+        scales: { ...scaleConfig(), x: { ...scaleConfig().x, ticks: { ...scaleConfig().x.ticks, maxRotation: isMob ? 30 : 45, font: { size: 9 } } } }
       }
     });
   })();
