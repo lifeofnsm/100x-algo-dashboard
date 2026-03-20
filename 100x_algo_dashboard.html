@@ -851,6 +851,7 @@ function switchAccount(accountId) {
   const url = new URL(window.location.href);
   url.searchParams.set('account', accountId);
   window.history.pushState({}, '', url.toString());
+  document.getElementById('accSelect').value = accountId;
   loadDashboard(accountId);
 }
 
