@@ -245,18 +245,22 @@ def build_trades_from_orders(orders):
 
         # Try to find matching entry order (same symbol, opposite side, any qty, earlier)
         # We only use the entry order for entry_time — PnL and prices come from meta_data.
-        # Relaxed qty matching: one entry position may generate multiple partial exits.
+        # Max 60-day window: prevents old unmatched entries pairing with far-future exits.
         matched_entry = None
+        exit_dt_for_match = _parse_dt(exit_time_str)
         for idx, ent in enumerate(entry_orders):
             if idx in used_entries:
                 continue
             ent_sym = ent.get("product_symbol", "")
             ent_side = (ent.get("side") or "").lower()
             ent_time = ent.get("created_at", "")
+            ent_dt = _parse_dt(ent_time)
+            days_diff = (exit_dt_for_match - ent_dt).days
 
             if (ent_sym == sym
                     and ent_side == entry_side
-                    and ent_time <= exit_time_str):
+                    and ent_time <= exit_time_str
+                    and 0 <= days_diff <= 60):
                 matched_entry = ent
                 used_entries.add(idx)
                 break

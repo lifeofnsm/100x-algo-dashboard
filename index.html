@@ -766,7 +766,11 @@ async function loadDashboard(accountId) {
   loadTxt.textContent = 'Loading ' + accountId + '...';
 
   try {
-    const data = await loadDashboardData(accountId);
+    const data = await loadDashboardData(accountId).catch(err => {
+      loadTxt.innerHTML = '⚠️ No data yet for <b>' + accountId + '</b>.<br>Run <code>auto_update.bat</code> to fetch this account.';
+      setTimeout(() => { overlay.style.display = 'none'; }, 3000);
+      throw err;
+    });
     currentAccountId = accountId;
     window._dashData = data;
     populateDashboard(data);
@@ -1451,11 +1455,12 @@ function getFiltered() {
   if (curSearch) {
     const q = curSearch.toLowerCase();
     arr = arr.filter(t =>
-      t.contract.toLowerCase().includes(q) ||
-      t.direction.toLowerCase().includes(q) ||
-      t.entry.includes(q) ||
-      t.exit.includes(q) ||
-      String(t.pnl_usd).includes(q)
+      (t.contract || '').toLowerCase().includes(q) ||
+      (t.direction || '').toLowerCase().includes(q) ||
+      (t.entry || '').includes(q) ||
+      (t.exit || '').includes(q) ||
+      String(t.pnl_usd || '').includes(q) ||
+      String(Math.round(t.pnl_inr || 0)).includes(q)
     );
   }
 
@@ -1561,7 +1566,8 @@ function sortBy(col) {
   curPage = 1;
   document.querySelectorAll('th').forEach(th => {
     th.classList.remove('sorted');
-    th.querySelector('.sa').textContent = '\u25bc';
+    const sa = th.querySelector('.sa');
+    if (sa) sa.textContent = '\u25bc';
   });
   const th = document.querySelector('th[data-col="' + col + '"]');
   if (th) { th.classList.add('sorted'); th.querySelector('.sa').textContent = curSort.dir === 1 ? '\u25bc' : '\u25b2'; }
