@@ -1134,48 +1134,35 @@ def send_discord_summary(results, combined_ok):
         now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
         ts = now_ist.strftime("%d %b %Y, %I:%M %p IST")
 
-        lines = ["**100X Algo — Daily Update** | " + ts, ""]
-
-        for acc_id, ok in results.items():
-            if not ok:
-                continue
-            acc_path = os.path.join("data", acc_id, "dashboard_data.json")
-            if not os.path.exists(acc_path):
-                continue
-            try:
-                with open(acc_path, encoding="utf-8") as f:
-                    d = json.load(f)
-                s    = d.get("stats", {})
-                m    = d.get("meta", {})
-                name = m.get("account_name", acc_id.capitalize())
-                cap  = float(m.get("assumed_capital_inr") or m.get("net_capital_inr") or 0)
-                nav  = float(m.get("wallet_balance_inr") or 0)
-                pnl  = float(m.get("wallet_net_pnl_inr") or s.get("total_pnl_inr") or 0)
-                sign = "+" if pnl >= 0 else "-"
-                lines.append("**" + name + "**  |  Capital: " + inr(cap) + "  |  NAV: " + inr(nav))
-                lines.append("PnL: " + sign + inr(abs(pnl)) + "  |  CAGR: " + str(s.get("cagr_pct", 0)) + "%  |  " + str(s.get("total_trades", 0)) + " trades  |  " + str(s.get("win_rate_pct", 0)) + "% WR")
-                lines.append("")
-            except Exception as e2:
-                print("[discord] Skipping " + acc_id + ": " + str(e2))
-
+        # Read combined stats for quick summary
         combined_path = os.path.join("data", "combined", "dashboard_data.json")
-        if combined_ok and os.path.exists(combined_path):
-            try:
+        c_nav_str = "\u20b90"
+        c_pnl_str = "\u20b90"
+        c_cagr_str = "0%"
+        try:
+            if combined_ok and os.path.exists(combined_path):
                 with open(combined_path, encoding="utf-8") as f:
                     cd = json.load(f)
                 cs = cd.get("stats", {})
                 cm = cd.get("meta", {})
                 c_nav  = float(cm.get("wallet_balance_inr") or 0)
-                c_cap  = float(cm.get("assumed_capital_inr") or cm.get("net_capital_inr") or 0)
                 c_pnl  = float(cm.get("wallet_net_pnl_inr") or cs.get("total_pnl_inr") or 0)
+                c_cagr = cs.get("cagr_pct", 0)
                 c_sign = "+" if c_pnl >= 0 else "-"
-                lines.append("**Combined**  |  Capital: " + inr(c_cap) + "  |  NAV: " + inr(c_nav))
-                lines.append("PnL: " + c_sign + inr(abs(c_pnl)) + "  |  CAGR: " + str(cs.get("cagr_pct", 0)) + "%  |  " + str(cs.get("total_trades", 0)) + " trades  |  " + str(cs.get("win_rate_pct", 0)) + "% WR")
-                lines.append("")
-            except Exception as e3:
-                print("[discord] Combined error: " + str(e3))
+                c_nav_str  = "\u20b9{:,.0f}".format(c_nav)
+                c_pnl_str  = c_sign + "\u20b9{:,.0f}".format(abs(c_pnl))
+                c_cagr_str = str(c_cagr) + "%"
+        except Exception as e3:
+            print("[discord] Combined error: " + str(e3))
 
-        lines.append("natarajmalavade.in/100x-algo-dashboard")
+        lines = [
+            "\U0001f4ca  **100X Algo \u2014 Data Updated**",
+            "\U0001f550  " + ts,
+            "",
+            "\U0001f3af  NAV: **" + c_nav_str + "**   PnL: **" + c_pnl_str + "**   CAGR: **" + c_cagr_str + "**",
+            "",
+            "> \U0001f517  **[View Dashboard](https://www.natarajmalavade.in/100x-algo-dashboard)**"
+        ]
 
         resp = requests.post(webhook_url, json={"content": "\n".join(lines)}, timeout=15)
         if resp.status_code in (200, 204):
