@@ -73,8 +73,10 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);min
 .b-text p{font-size:10px;color:var(--text2);margin-top:2px;letter-spacing:.05em;text-transform:uppercase}
 .b-text .tagline{font-size:10.5px;color:#b0b8c8;margin-top:4px;letter-spacing:.03em;font-style:normal;font-weight:400;text-transform:none}
 .hdr-right{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.hdr-meta{display:flex;align-items:center;gap:10px}
+.hdr-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .period{font-size:11px;color:var(--text2)}
+.sync-ts{font-size:10px;color:var(--text3);white-space:nowrap}
+.sync-ts:not(:empty)::before{content:"🕐 ";font-size:10px}
 .period span{color:var(--text2);font-weight:500}
 .live-badge{display:inline-flex;align-items:center;gap:5px;background:var(--green-dim);
   border:1px solid var(--green);border-radius:20px;padding:3px 10px;
@@ -371,7 +373,7 @@ canvas{max-width:100%}
 @media(max-width:480px){
   .kpi-grid{grid-template-columns:1fr 1fr;gap:6px}
   .kv{font-size:16px}
-  .hdr-right .period,.hdr-right .live-badge{display:none}
+  .hdr-right .period,.hdr-right .live-badge,.sync-ts{display:none}
   .stitle h2{font-size:16px}
   .logout-btn span{display:none}
 }
@@ -431,6 +433,7 @@ canvas{max-width:100%}
         <div class="hdr-meta">
           <div class="period" id="hdrPeriod">Loading...</div>
           <div class="live-badge" id="accBadge"><div class="ld"></div><span id="accBadgeTxt">Auto-Updated</span></div>
+          <div class="sync-ts" id="syncTs" title="Last data sync"></div>
         </div>
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
           <span id="themeIcon">🌙</span>
@@ -956,8 +959,23 @@ function populateDashboard(data) {
   document.getElementById('hdrSub').textContent =
     contracts_str + ' Perpetual Futures \u00b7 Bi-directional (Long + Short) \u00b7 ' + S.total_trades + ' Filled Trades';
 
+  const luRaw = meta.last_updated || '';
   document.getElementById('lastUpdated').textContent =
-    (meta.last_updated || '').replace('T', ' ').substring(0, 16) + ' UTC';
+    luRaw.replace('T', ' ').substring(0, 16) + ' UTC';
+  // Show sync time in header — convert UTC to IST for readability
+  if (luRaw) {
+    try {
+      const d = new Date(luRaw);
+      const istOpts = { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short',
+                        hour: '2-digit', minute: '2-digit', hour12: true };
+      document.getElementById('syncTs').textContent =
+        'Synced ' + d.toLocaleString('en-IN', istOpts) + ' IST';
+    } catch(e) {
+      document.getElementById('syncTs').textContent = '';
+    }
+  } else {
+    document.getElementById('syncTs').textContent = '';
+  }
   document.getElementById('footPeriod').textContent =
     (S.period_start || '—') + ' \u2013 ' + (S.period_end || '—');
   document.getElementById('footTrades').textContent = S.total_trades;

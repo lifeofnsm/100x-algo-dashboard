@@ -1113,67 +1113,172 @@ def write_accounts_list(accounts, has_combined=False):
 
 
 # ── DISCORD NOTIFICATION ──────────────────────────────────────────────────────
-def send_discord_summary(results, combined_ok):
+DASHBOARD_URL = "https://www.natarajmalavade.in/100x-algo-dashboard"
+
+def _load_combined_stats(combined_ok):
+    """Return (nav_inr, pnl_inr, cagr_pct) from combined dashboard_data.json."""
+    combined_path = os.path.join("data", "combined", "dashboard_data.json")
+    if combined_ok and os.path.exists(combined_path):
+        with open(combined_path, encoding="utf-8") as f:
+            cd = json.load(f)
+        cs = cd.get("stats", {})
+        cm = cd.get("meta", {})
+        nav  = float(cm.get("wallet_balance_inr") or 0)
+        pnl  = float(cm.get("wallet_net_pnl_inr") or cs.get("total_pnl_inr") or 0)
+        cagr = float(cs.get("cagr_pct") or 0)
+        return nav, pnl, cagr
+    return 0.0, 0.0, 0.0
+
+def _load_account_stats(acc_id):
+    """Return (nav_inr, pnl_inr, cagr_pct) for a single account."""
+    path = os.path.join("data", acc_id, "dashboard_data.json")
+    if not os.path.exists(path):
+        return None, None, None
+    try:
+        with open(path, encoding="utf-8") as f:
+            d = json.load(f)
+        cs = d.get("stats", {})
+        cm = d.get("meta", {})
+        nav  = float(cm.get("wallet_balance_inr") or 0)
+        pnl  = float(cm.get("wallet_net_pnl_inr") or cs.get("total_pnl_inr") or 0)
+        cagr = float(cs.get("cagr_pct") or 0)
+        return nav, pnl, cagr
+    except Exception:
+        return None, None, None
+
+def _fmt_inr(v):
+    try:
+        v = float(v or 0)
+        return "\u20b9{:,.0f}".format(abs(v))
+    except Exception:
+        return "\u20b90"
+
+def _fmt_pnl(v):
+    try:
+        v = float(v or 0)
+        sign = "+" if v >= 0 else "\u2212"
+        return sign + "\u20b9{:,.0f}".format(abs(v))
+    except Exception:
+        return "+\u20b90"
+
+
+def send_discord_short_update(combined_ok):
+    """Short 4-hour update: just NAV / PnL / CAGR + dashboard link."""
     webhook_url = os.environ.get("DISCORD_WEBHOOK", "").strip()
     if not webhook_url:
-        print("[discord] No webhook set — skipping.")
+        print("[discord] No webhook set — skipping short update.")
         return
-
-    # Normalise URL (discordapp.com -> discord.com)
     webhook_url = webhook_url.replace("discordapp.com", "discord.com")
-    print("[discord] Sending summary...")
-
-    def inr(v):
-        try:
-            return "Rs.{:,.0f}".format(float(v or 0))
-        except:
-            return "Rs.0"
 
     try:
         from datetime import timezone, timedelta
         now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
         ts = now_ist.strftime("%d %b %Y, %I:%M %p IST")
 
-        # Read combined stats for quick summary
-        combined_path = os.path.join("data", "combined", "dashboard_data.json")
-        c_nav_str = "\u20b90"
-        c_pnl_str = "\u20b90"
-        c_cagr_str = "0%"
-        try:
-            if combined_ok and os.path.exists(combined_path):
-                with open(combined_path, encoding="utf-8") as f:
-                    cd = json.load(f)
-                cs = cd.get("stats", {})
-                cm = cd.get("meta", {})
-                c_nav  = float(cm.get("wallet_balance_inr") or 0)
-                c_pnl  = float(cm.get("wallet_net_pnl_inr") or cs.get("total_pnl_inr") or 0)
-                c_cagr = cs.get("cagr_pct", 0)
-                c_sign = "+" if c_pnl >= 0 else "-"
-                c_nav_str  = "\u20b9{:,.0f}".format(c_nav)
-                c_pnl_str  = c_sign + "\u20b9{:,.0f}".format(abs(c_pnl))
-                c_cagr_str = str(c_cagr) + "%"
-        except Exception as e3:
-            print("[discord] Combined error: " + str(e3))
+        nav, pnl, cagr = _load_combined_stats(combined_ok)
 
         lines = [
             "\U0001f4ca  **100X Algo \u2014 Data Updated**",
             "\U0001f550  " + ts,
             "",
-            "\U0001f3af  NAV: **" + c_nav_str + "**   PnL: **" + c_pnl_str + "**   CAGR: **" + c_cagr_str + "**",
+            "\U0001f3af  NAV: **" + _fmt_inr(nav) + "**   PnL: **" + _fmt_pnl(pnl) + "**   CAGR: **" + str(round(cagr, 1)) + "%**",
             "",
-            "> \U0001f517  **[View Dashboard](https://www.natarajmalavade.in/100x-algo-dashboard)**"
+            "> \U0001f517  **[View Dashboard](" + DASHBOARD_URL + ")**"
         ]
 
         resp = requests.post(webhook_url, json={"content": "\n".join(lines)}, timeout=15)
         if resp.status_code in (200, 204):
-            print("[discord] Sent successfully.")
+            print("[discord] Short update sent.")
         else:
-            print("[discord] Failed: HTTP " + str(resp.status_code) + " — " + resp.text)
+            print("[discord] Short update failed: HTTP " + str(resp.status_code) + " — " + resp.text)
 
     except Exception as e:
         import traceback
-        print("[discord] ERROR: " + str(e))
+        print("[discord] Short update ERROR: " + str(e))
         traceback.print_exc()
+
+
+def send_discord_daily_summary(accounts, combined_ok):
+    """Morning daily summary: combined stats + per-account breakdown."""
+    webhook_url = os.environ.get("DISCORD_WEBHOOK", "").strip()
+    if not webhook_url:
+        print("[discord] No webhook set — skipping daily summary.")
+        return
+    webhook_url = webhook_url.replace("discordapp.com", "discord.com")
+
+    try:
+        from datetime import timezone, timedelta
+        now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+        date_str = now_ist.strftime("%d %b %Y")
+        time_str = now_ist.strftime("%I:%M %p IST")
+
+        nav, pnl, cagr = _load_combined_stats(combined_ok)
+
+        lines = [
+            "\U0001f4ca  **100X Algo \u2014 Daily Summary**",
+            "\U0001f4c5  " + date_str + "  \u2022  \U0001f550  " + time_str,
+            "",
+            "**Portfolio**",
+            "\U0001f4b0  NAV: **" + _fmt_inr(nav) + "**   \U0001f4c8  PnL: **" + _fmt_pnl(pnl) + "**   \U0001f680  CAGR: **" + str(round(cagr, 1)) + "%**",
+            "",
+            "**Individual Accounts**",
+        ]
+
+        # Per-account rows (active accounts only)
+        active_accs = [a for a in accounts if a.get("active")]
+        for acc in active_accs:
+            acc_nav, acc_pnl, acc_cagr = _load_account_stats(acc["id"])
+            if acc_nav is None:
+                lines.append("\u2022  **" + acc["name"] + "** \u2014 no data")
+            else:
+                pnl_str  = _fmt_pnl(acc_pnl)
+                cagr_str = str(round(acc_cagr, 1)) + "%"
+                lines.append(
+                    "\u2022  **" + acc["name"] + "**  \u2014  NAV: " + _fmt_inr(acc_nav) +
+                    "  |  PnL: " + pnl_str +
+                    "  |  CAGR: " + cagr_str
+                )
+
+        lines += [
+            "",
+            "> \U0001f517  **[View Dashboard](" + DASHBOARD_URL + ")**"
+        ]
+
+        resp = requests.post(webhook_url, json={"content": "\n".join(lines)}, timeout=15)
+        if resp.status_code in (200, 204):
+            print("[discord] Daily summary sent.")
+        else:
+            print("[discord] Daily summary failed: HTTP " + str(resp.status_code) + " — " + resp.text)
+
+    except Exception as e:
+        import traceback
+        print("[discord] Daily summary ERROR: " + str(e))
+        traceback.print_exc()
+
+
+def send_discord_summary(results, combined_ok, accounts=None):
+    """
+    Route to the right Discord message based on time of day (IST):
+      06:00 – 08:59 IST  →  daily summary (detailed, once a day)
+      all other times    →  short update (4-hour data-refresh alert)
+    The morning run falls at 00:00 UTC = 05:30 IST, close enough.
+    """
+    webhook_url = os.environ.get("DISCORD_WEBHOOK", "").strip()
+    if not webhook_url:
+        print("[discord] No webhook set — skipping.")
+        return
+
+    from datetime import timezone, timedelta
+    now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+    ist_hour = now_ist.hour
+
+    # Morning window: 5–8 AM IST covers the 00:00 UTC run (5:30 IST)
+    if 5 <= ist_hour <= 8:
+        print("[discord] Morning run detected — sending daily summary.")
+        send_discord_daily_summary(accounts or [], combined_ok)
+    else:
+        print("[discord] Regular run — sending short update.")
+        send_discord_short_update(combined_ok)
 
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
@@ -1212,4 +1317,4 @@ if __name__ == "__main__":
     print("=" * 60)
 
     # Send Discord summary
-    send_discord_summary(results, combined_ok)
+    send_discord_summary(results, combined_ok, accounts=accounts)
