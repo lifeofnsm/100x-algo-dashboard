@@ -1,0 +1,49 @@
+name: Update Dashboard Data
+
+on:
+  schedule:
+    # Runs daily at 11:00 PM IST (5:30 PM UTC)
+    - cron: '30 17 * * *'
+  workflow_dispatch:  # Allow manual trigger from GitHub UI
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch dashboard data
+        env:
+          NATARAJ_API_KEY: ${{ secrets.NATARAJ_API_KEY }}
+          NATARAJ_API_SECRET: ${{ secrets.NATARAJ_API_SECRET }}
+          SHALINI_API_KEY: ${{ secrets.SHALINI_API_KEY }}
+          SHALINI_API_SECRET: ${{ secrets.SHALINI_API_SECRET }}
+          MOM_API_KEY: ${{ secrets.MOM_API_KEY }}
+          MOM_API_SECRET: ${{ secrets.MOM_API_SECRET }}
+          VINAY_API_KEY: ${{ secrets.VINAY_API_KEY }}
+          VINAY_API_SECRET: ${{ secrets.VINAY_API_SECRET }}
+        run: python delta_fetcher.py
+
+      - name: Commit and push updated data
+        run: |
+          git config user.name "100X Algo Bot"
+          git config user.email "actions@github.com"
+          git add data/ data/nataraj/orders_store.json data/shalini/orders_store.json data/mom/orders_store.json data/vinay/orders_store.json || true
+          git diff --cached --quiet && echo "No changes to commit" || (
+            git commit -m "Auto update $(date +'%Y-%m-%d %H:%M IST')"
+            git push
+          )

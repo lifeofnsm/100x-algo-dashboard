@@ -32,6 +32,17 @@
       "assumed_capital_usd": 10000,
       "usd_inr_rate": 85,
       "note": "Mom account"
+    },
+    {
+      "id": "vinay",
+      "name": "Vinay",
+      "api_key_env": "VINAY_API_KEY",
+      "api_secret_env": "VINAY_API_SECRET",
+      "active": true,
+      "endpoint": "https://api.india.delta.exchange",
+      "assumed_capital_usd": 10000,
+      "usd_inr_rate": 85,
+      "note": "Vinay account"
     }
   ]
 }
