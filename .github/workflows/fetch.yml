@@ -3,9 +3,8 @@ name: Fetch Delta Exchange Trades
 # ─── TRIGGERS ─────────────────────────────────────────────────────────────────
 on:
   schedule:
-    # Runs every 4 hours (UTC) — 6 times a day
-    # Format: minute hour day month weekday (UTC)
-    - cron: '0 */4 * * *'
+    # Runs once daily at 1:00 AM UTC = 6:30 AM IST
+    - cron: '0 1 * * *'
 
   # Allows manual trigger from the Actions tab in GitHub
   workflow_dispatch:
@@ -55,6 +54,7 @@ jobs:
           # ── Nataraj — inactive, will activate when new account goes live ────
           NATARAJ_API_KEY:    ${{ secrets.NATARAJ_API_KEY }}
           NATARAJ_API_SECRET: ${{ secrets.NATARAJ_API_SECRET }}
+          DISCORD_WEBHOOK:    ${{ secrets.DISCORD_WEBHOOK }}
         run: python delta_fetcher.py
 
       # 5. Commit the updated JSON files back to the repo

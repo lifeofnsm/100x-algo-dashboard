@@ -1096,6 +1096,102 @@ def write_accounts_list(accounts, has_combined=False):
     print(f"\nWrote accounts_list.json ({len(items)} entries)")
 
 
+# ── DISCORD NOTIFICATION ──────────────────────────────────────────────────────
+def send_discord_summary(results, combined_ok):
+    webhook_url = os.environ.get("DISCORD_WEBHOOK", "")
+    if not webhook_url:
+        print("[discord] No webhook set — skipping notification.")
+        return
+
+    try:
+        from datetime import timezone
+        now_utc = datetime.now(timezone.utc)
+        # Convert to IST (UTC+5:30)
+        from datetime import timedelta
+        now_ist = now_utc + timedelta(hours=5, minutes=30)
+        timestamp = now_ist.strftime("%d %b %Y, %I:%M %p IST")
+
+        # Read combined data for summary
+        combined_path = os.path.join(DATA_DIR, "combined", "dashboard_data.json")
+        fields = []
+
+        account_emojis = {"shalini": "👩", "vinay": "👨", "mom": "👵", "nataraj": "🧑"}
+
+        for acc_id, ok in results.items():
+            if not ok:
+                continue
+            acc_path = os.path.join(DATA_DIR, acc_id, "dashboard_data.json")
+            if not os.path.exists(acc_path):
+                continue
+            with open(acc_path) as f:
+                d = json.load(f)
+            s = d.get("stats", {})
+            meta = d.get("meta", {})
+            name = meta.get("account_name", acc_id.capitalize())
+            emoji = account_emojis.get(acc_id, "👤")
+            wallet_inr = meta.get("wallet_balance_inr", 0)
+            cap_inr    = meta.get("assumed_capital_inr", meta.get("net_capital_inr", 0))
+            pnl_inr    = meta.get("wallet_net_pnl_inr", s.get("total_pnl_inr", 0))
+            cagr       = s.get("cagr_pct", 0)
+            trades     = s.get("total_trades", 0)
+            wr         = s.get("win_rate_pct", 0)
+            pnl_sign   = "+" if pnl_inr >= 0 else ""
+            fields.append({
+                "name": f"{emoji} {name}",
+                "value": (
+                    f"Capital: ₹{cap_inr:,.0f}\n"
+                    f"Wallet NAV: ₹{wallet_inr:,.0f}\n"
+                    f"Net PnL: {pnl_sign}₹{pnl_inr:,.0f}  |  CAGR: {cagr}%\n"
+                    f"Trades: {trades}  |  WR: {wr}%"
+                ),
+                "inline": False
+            })
+
+        # Combined row
+        if combined_ok and os.path.exists(combined_path):
+            with open(combined_path) as f:
+                cd = json.load(f)
+            cs = cd.get("stats", {})
+            cm = cd.get("meta", {})
+            c_wallet = cm.get("wallet_balance_inr", 0)
+            c_cap    = cm.get("assumed_capital_inr", cm.get("net_capital_inr", 0))
+            c_pnl    = cm.get("wallet_net_pnl_inr", cs.get("total_pnl_inr", 0))
+            c_cagr   = cs.get("cagr_pct", 0)
+            c_trades = cs.get("total_trades", 0)
+            c_wr     = cs.get("win_rate_pct", 0)
+            c_sign   = "+" if c_pnl >= 0 else ""
+            fields.append({
+                "name": "📊 Combined — All Accounts",
+                "value": (
+                    f"Capital: ₹{c_cap:,.0f}  |  Wallet NAV: ₹{c_wallet:,.0f}\n"
+                    f"Net PnL: {c_sign}₹{c_pnl:,.0f}  |  CAGR: {c_cagr}%\n"
+                    f"Trades: {c_trades}  |  WR: {c_wr}%"
+                ),
+                "inline": False
+            })
+
+        payload = {
+            "embeds": [{
+                "title": "📈 100X Algo Dashboard — Daily Update",
+                "description": f"Auto-fetched on {timestamp}",
+                "color": 0x387ed1,
+                "fields": fields,
+                "footer": {
+                    "text": "100X Algo by GrowGuru • natarajmalavade.in/100x-algo-dashboard"
+                }
+            }]
+        }
+
+        resp = requests.post(webhook_url, json=payload, timeout=10)
+        if resp.status_code in (200, 204):
+            print("[discord] ✅ Summary sent to Discord.")
+        else:
+            print(f"[discord] ⚠️  Failed: {resp.status_code} — {resp.text}")
+
+    except Exception as e:
+        print(f"[discord] ERROR: {e}")
+
+
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("=" * 60)
@@ -1130,3 +1226,6 @@ if __name__ == "__main__":
         print(f"  {acc_id}: {'OK' if ok else 'SKIPPED/ERROR'}")
     print(f"  combined: {'OK' if combined_ok else 'SKIPPED/ERROR'}")
     print("=" * 60)
+
+    # Send Discord summary
+    send_discord_summary(results, combined_ok)
