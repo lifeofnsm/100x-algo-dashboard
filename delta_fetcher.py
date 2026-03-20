@@ -311,8 +311,27 @@ def build_trades_from_orders(orders):
     return closed_trades, []
 
 
-def build_open_trades_from_positions(positions):
-    """Convert live positions to open trades format."""
+def build_open_trades_from_positions(positions, all_orders=None):
+    """Convert live positions to open trades format.
+    Cross-references orders history to find entry_time for each position."""
+    # Build a lookup: symbol -> most recent entry order timestamp + fees
+    entry_lookup = {}
+    if all_orders:
+        for o in all_orders:
+            sym = o.get("product_symbol", "")
+            side = (o.get("side") or "").lower()
+            status = (o.get("state") or o.get("status") or "").lower()
+            if status not in ("filled", "closed"):
+                continue
+            # For each symbol, track most recent buy and sell order
+            ts = o.get("created_at", "")
+            fees = float(o.get("paid_commission") or 0)
+            key_buy = sym + "_buy"
+            key_sell = sym + "_sell"
+            k = sym + "_" + side
+            if k not in entry_lookup or ts > entry_lookup[k]["ts"]:
+                entry_lookup[k] = {"ts": ts, "fees": fees}
+
     open_trades = []
     for pos in positions:
         size = float(pos.get("size") or 0)
@@ -321,17 +340,26 @@ def build_open_trades_from_positions(positions):
         sym = pos.get("product_symbol", "")
         entry_px = float(pos.get("entry_price") or 0)
         direction = "LONG" if (pos.get("side") or "").lower() == "buy" else "SHORT"
+
+        # Find entry time from orders history
+        order_side = "buy" if direction == "LONG" else "sell"
+        lookup = entry_lookup.get(sym + "_" + order_side, {})
+        entry_time_str = lookup.get("ts", "")
+        entry_dt = _parse_dt(entry_time_str) if entry_time_str else None
+        entry_display = _dt_str(entry_dt) if entry_dt else "—"
+        fees_usd = lookup.get("fees", 0)
+
         open_trades.append({
             "contract": sym,
             "direction": direction,
             "qty": abs(size),
             "entry_px": round(entry_px, 6),
-            "entry": "Open Position",
-            "entry_time": "",
+            "entry": entry_display,
+            "entry_time": entry_dt.isoformat() if entry_dt else "",
             "entry_val_usd": round(abs(size) * entry_px, 2),
             "entry_val_inr": round(abs(size) * entry_px * USD_INR, 0),
-            "fees_usd": 0,
-            "fees_inr": 0,
+            "fees_usd": round(fees_usd, 4),
+            "fees_inr": round(fees_usd * USD_INR, 2),
             "unrealized_pnl_usd": round(float(pos.get("realized_pnl") or 0), 4),
             "source": "live_position",
         })
@@ -601,7 +629,7 @@ def run_account(account):
 
     # Fetch live open positions only — never fall back to unmatched orders
     positions = fetch_open_positions(endpoint, api_key, api_secret)
-    open_trades = build_open_trades_from_positions(positions)
+    open_trades = build_open_trades_from_positions(positions, all_orders=all_orders)
     print(f"[{account_id}] Open trades: {len(open_trades)}")
 
     if not closed_trades:
