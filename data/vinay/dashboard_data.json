@@ -2,7 +2,7 @@
   "meta": {
     "account_id": "vinay",
     "account_name": "Vinay",
-    "last_updated": "2026-03-20T08:06:44.966795+00:00",
+    "last_updated": "2026-03-20T08:24:39.852688+00:00",
     "usd_inr_rate": 85.0,
     "assumed_capital_usd": 2352.94,
     "assumed_capital_inr": 200000.0,
@@ -11,13 +11,13 @@
     "total_withdrawals_inr": null,
     "net_capital_inr": 200000.0,
     "capital_source": "manual_config",
-    "wallet_balance_usd": null,
-    "wallet_balance_inr": null,
-    "wallet_collateral_usd": null,
-    "wallet_unrealized_usd": 0,
-    "wallet_net_pnl_usd": null,
-    "wallet_net_pnl_inr": null,
-    "wallet_nav_growth_pct": null,
+    "wallet_balance_usd": 12656.655,
+    "wallet_balance_inr": 1075816.0,
+    "wallet_collateral_usd": 12085.0114,
+    "wallet_unrealized_usd": 571.6436,
+    "wallet_net_pnl_usd": 10303.72,
+    "wallet_net_pnl_inr": 875816.0,
+    "wallet_nav_growth_pct": 437.9,
     "actual_capital_usd": null,
     "actual_capital_inr": null,
     "active": true,
@@ -31,7 +31,7 @@
     "assumed_capital_usd": 2352.94,
     "final_nav_usd": 17011.51,
     "nav_growth_pct": 623.0,
-    "cagr_pct": 492.8,
+    "cagr_pct": 353.9,
     "sharpe": 2.28,
     "max_drawdown_pct": -51.7,
     "max_drawdown_usd": -2462.0,
@@ -13950,5 +13950,36 @@
       "num": 455
     }
   ],
-  "open_trades": []
+  "open_trades": [
+    {
+      "contract": "ETHUSD",
+      "direction": "SHORT",
+      "qty": 431.0,
+      "entry_px": 2237.130626,
+      "entry": "2026-03-18 12:46",
+      "entry_time": "2026-03-18T12:46:08.747414+00:00",
+      "entry_val_usd": 964203.3,
+      "entry_val_inr": 81957280.0,
+      "fees_usd": 5.6888,
+      "fees_inr": 483.55,
+      "unrealized_pnl_usd": 306.573,
+      "unrealized_pnl_inr": 26058.7,
+      "source": "live_position"
+    },
+    {
+      "contract": "XRPUSD",
+      "direction": "SHORT",
+      "qty": 7661.0,
+      "entry_px": 1.4945,
+      "entry": "2026-03-18 11:31",
+      "entry_time": "2026-03-18T11:31:06.305791+00:00",
+      "entry_val_usd": 11449.36,
+      "entry_val_inr": 973196.0,
+      "fees_usd": 2.7021,
+      "fees_inr": 229.67,
+      "unrealized_pnl_usd": 265.0706,
+      "unrealized_pnl_inr": 22531.0,
+      "source": "live_position"
+    }
+  ]
 }
