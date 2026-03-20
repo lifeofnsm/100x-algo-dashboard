@@ -170,9 +170,14 @@ def fetch_wallet_balance(endpoint, api_key, api_secret):
     url = f"{endpoint}{path}"
     try:
         resp = requests.get(url, headers=headers, timeout=15)
+        print(f"  [fetch_wallet] HTTP {resp.status_code}")
+        if resp.status_code != 200:
+            print(f"  [fetch_wallet] Error response: {resp.text[:300]}")
+            return None, []
         data = resp.json()
         balances = data.get("result", [])
         if not balances:
+            print(f"  [fetch_wallet] Empty result. Full response: {str(data)[:300]}")
             return None, []
 
         # Look for USD/USDT balance (main margin currency on Delta India)
@@ -994,8 +999,9 @@ def combine_accounts(accounts):
         total_capital_inr += acc_capital_inr
 
         # Aggregate wallet equity
-        w_eq_usd = acc_meta.get("wallet_balance_usd")
-        w_eq_inr = acc_meta.get("wallet_balance_inr")
+        # If wallet API failed for an account, fall back to trade log PnL + capital as estimate
+        w_eq_usd  = acc_meta.get("wallet_balance_usd")
+        w_eq_inr  = acc_meta.get("wallet_balance_inr")
         w_pnl_usd = acc_meta.get("wallet_net_pnl_usd")
         w_pnl_inr = acc_meta.get("wallet_net_pnl_inr")
         if w_eq_usd is not None:
@@ -1004,6 +1010,16 @@ def combine_accounts(accounts):
             combined_wallet_net_pnl_usd += (w_pnl_usd or 0)
             combined_wallet_net_pnl_inr += (w_pnl_inr or 0)
             has_wallet_data = True
+        else:
+            # No live wallet data — use trade log PnL + capital as best estimate
+            trade_pnl_inr = float(d.get("stats", {}).get("total_pnl_inr") or 0)
+            trade_pnl_usd = round(trade_pnl_inr / USD_INR, 2)
+            combined_wallet_net_pnl_inr += trade_pnl_inr
+            combined_wallet_net_pnl_usd += trade_pnl_usd
+            combined_wallet_equity_inr  += acc_capital_inr + trade_pnl_inr
+            combined_wallet_equity_usd  += acc_capital_usd + trade_pnl_usd
+            has_wallet_data = True
+            print(f"[combined] {acc_id}: no wallet data — using trade PnL fallback (Rs.{trade_pnl_inr:,.0f})")
 
         for t in d.get("trades", []):
             t2 = dict(t)
@@ -1098,24 +1114,27 @@ def write_accounts_list(accounts, has_combined=False):
 
 # ── DISCORD NOTIFICATION ──────────────────────────────────────────────────────
 def send_discord_summary(results, combined_ok):
-    webhook_url = os.environ.get("DISCORD_WEBHOOK", "")
+    webhook_url = os.environ.get("DISCORD_WEBHOOK", "").strip()
     if not webhook_url:
-        print("[discord] No webhook set — skipping notification.")
+        print("[discord] No webhook set — skipping.")
         return
 
+    # Normalise URL (discordapp.com -> discord.com)
+    webhook_url = webhook_url.replace("discordapp.com", "discord.com")
+    print("[discord] Sending summary...")
+
+    def inr(v):
+        try:
+            return "Rs.{:,.0f}".format(float(v or 0))
+        except:
+            return "Rs.0"
+
     try:
-        from datetime import timezone
-        now_utc = datetime.now(timezone.utc)
-        # Convert to IST (UTC+5:30)
-        from datetime import timedelta
-        now_ist = now_utc + timedelta(hours=5, minutes=30)
-        timestamp = now_ist.strftime("%d %b %Y, %I:%M %p IST")
+        from datetime import timezone, timedelta
+        now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+        ts = now_ist.strftime("%d %b %Y, %I:%M %p IST")
 
-        # Read combined data for summary
-        combined_path = os.path.join(DATA_DIR, "combined", "dashboard_data.json")
-        fields = []
-
-        account_emojis = {"shalini": "👩", "vinay": "👨", "mom": "👵", "nataraj": "🧑"}
+        lines = ["**100X Algo — Daily Update** | " + ts, ""]
 
         for acc_id, ok in results.items():
             if not ok:
@@ -1123,73 +1142,51 @@ def send_discord_summary(results, combined_ok):
             acc_path = os.path.join(DATA_DIR, acc_id, "dashboard_data.json")
             if not os.path.exists(acc_path):
                 continue
-            with open(acc_path) as f:
-                d = json.load(f)
-            s = d.get("stats", {})
-            meta = d.get("meta", {})
-            name = meta.get("account_name", acc_id.capitalize())
-            emoji = account_emojis.get(acc_id, "👤")
-            wallet_inr = meta.get("wallet_balance_inr", 0)
-            cap_inr    = meta.get("assumed_capital_inr", meta.get("net_capital_inr", 0))
-            pnl_inr    = meta.get("wallet_net_pnl_inr", s.get("total_pnl_inr", 0))
-            cagr       = s.get("cagr_pct", 0)
-            trades     = s.get("total_trades", 0)
-            wr         = s.get("win_rate_pct", 0)
-            pnl_sign   = "+" if pnl_inr >= 0 else ""
-            fields.append({
-                "name": f"{emoji} {name}",
-                "value": (
-                    f"Capital: ₹{cap_inr:,.0f}\n"
-                    f"Wallet NAV: ₹{wallet_inr:,.0f}\n"
-                    f"Net PnL: {pnl_sign}₹{pnl_inr:,.0f}  |  CAGR: {cagr}%\n"
-                    f"Trades: {trades}  |  WR: {wr}%"
-                ),
-                "inline": False
-            })
+            try:
+                with open(acc_path, encoding="utf-8") as f:
+                    d = json.load(f)
+                s    = d.get("stats", {})
+                m    = d.get("meta", {})
+                name = m.get("account_name", acc_id.capitalize())
+                cap  = float(m.get("assumed_capital_inr") or m.get("net_capital_inr") or 0)
+                nav  = float(m.get("wallet_balance_inr") or 0)
+                pnl  = float(m.get("wallet_net_pnl_inr") or s.get("total_pnl_inr") or 0)
+                sign = "+" if pnl >= 0 else "-"
+                lines.append("**" + name + "**  |  Capital: " + inr(cap) + "  |  NAV: " + inr(nav))
+                lines.append("PnL: " + sign + inr(abs(pnl)) + "  |  CAGR: " + str(s.get("cagr_pct", 0)) + "%  |  " + str(s.get("total_trades", 0)) + " trades  |  " + str(s.get("win_rate_pct", 0)) + "% WR")
+                lines.append("")
+            except Exception as e2:
+                print("[discord] Skipping " + acc_id + ": " + str(e2))
 
-        # Combined row
+        combined_path = os.path.join(DATA_DIR, "combined", "dashboard_data.json")
         if combined_ok and os.path.exists(combined_path):
-            with open(combined_path) as f:
-                cd = json.load(f)
-            cs = cd.get("stats", {})
-            cm = cd.get("meta", {})
-            c_wallet = cm.get("wallet_balance_inr", 0)
-            c_cap    = cm.get("assumed_capital_inr", cm.get("net_capital_inr", 0))
-            c_pnl    = cm.get("wallet_net_pnl_inr", cs.get("total_pnl_inr", 0))
-            c_cagr   = cs.get("cagr_pct", 0)
-            c_trades = cs.get("total_trades", 0)
-            c_wr     = cs.get("win_rate_pct", 0)
-            c_sign   = "+" if c_pnl >= 0 else ""
-            fields.append({
-                "name": "📊 Combined — All Accounts",
-                "value": (
-                    f"Capital: ₹{c_cap:,.0f}  |  Wallet NAV: ₹{c_wallet:,.0f}\n"
-                    f"Net PnL: {c_sign}₹{c_pnl:,.0f}  |  CAGR: {c_cagr}%\n"
-                    f"Trades: {c_trades}  |  WR: {c_wr}%"
-                ),
-                "inline": False
-            })
+            try:
+                with open(combined_path, encoding="utf-8") as f:
+                    cd = json.load(f)
+                cs = cd.get("stats", {})
+                cm = cd.get("meta", {})
+                c_nav  = float(cm.get("wallet_balance_inr") or 0)
+                c_cap  = float(cm.get("assumed_capital_inr") or cm.get("net_capital_inr") or 0)
+                c_pnl  = float(cm.get("wallet_net_pnl_inr") or cs.get("total_pnl_inr") or 0)
+                c_sign = "+" if c_pnl >= 0 else "-"
+                lines.append("**Combined**  |  Capital: " + inr(c_cap) + "  |  NAV: " + inr(c_nav))
+                lines.append("PnL: " + c_sign + inr(abs(c_pnl)) + "  |  CAGR: " + str(cs.get("cagr_pct", 0)) + "%  |  " + str(cs.get("total_trades", 0)) + " trades  |  " + str(cs.get("win_rate_pct", 0)) + "% WR")
+                lines.append("")
+            except Exception as e3:
+                print("[discord] Combined error: " + str(e3))
 
-        payload = {
-            "embeds": [{
-                "title": "📈 100X Algo Dashboard — Daily Update",
-                "description": f"Auto-fetched on {timestamp}",
-                "color": 0x387ed1,
-                "fields": fields,
-                "footer": {
-                    "text": "100X Algo by GrowGuru • natarajmalavade.in/100x-algo-dashboard"
-                }
-            }]
-        }
+        lines.append("natarajmalavade.in/100x-algo-dashboard")
 
-        resp = requests.post(webhook_url, json=payload, timeout=10)
+        resp = requests.post(webhook_url, json={"content": "\n".join(lines)}, timeout=15)
         if resp.status_code in (200, 204):
-            print("[discord] ✅ Summary sent to Discord.")
+            print("[discord] Sent successfully.")
         else:
-            print(f"[discord] ⚠️  Failed: {resp.status_code} — {resp.text}")
+            print("[discord] Failed: HTTP " + str(resp.status_code) + " — " + resp.text)
 
     except Exception as e:
-        print(f"[discord] ERROR: {e}")
+        import traceback
+        print("[discord] ERROR: " + str(e))
+        traceback.print_exc()
 
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
