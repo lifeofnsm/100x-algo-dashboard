@@ -1139,7 +1139,7 @@ def send_discord_summary(results, combined_ok):
         for acc_id, ok in results.items():
             if not ok:
                 continue
-            acc_path = os.path.join(DATA_DIR, acc_id, "dashboard_data.json")
+            acc_path = os.path.join("data", acc_id, "dashboard_data.json")
             if not os.path.exists(acc_path):
                 continue
             try:
@@ -1158,7 +1158,7 @@ def send_discord_summary(results, combined_ok):
             except Exception as e2:
                 print("[discord] Skipping " + acc_id + ": " + str(e2))
 
-        combined_path = os.path.join(DATA_DIR, "combined", "dashboard_data.json")
+        combined_path = os.path.join("data", "combined", "dashboard_data.json")
         if combined_ok and os.path.exists(combined_path):
             try:
                 with open(combined_path, encoding="utf-8") as f:
