@@ -1,0 +1,37 @@
+{
+  "accounts": [
+    {
+      "id": "nataraj",
+      "name": "Nataraj",
+      "api_key_env": "NATARAJ_API_KEY",
+      "api_secret_env": "NATARAJ_API_SECRET",
+      "active": true,
+      "endpoint": "https://api.india.delta.exchange",
+      "assumed_capital_usd": 10000,
+      "usd_inr_rate": 85,
+      "note": "Main account"
+    },
+    {
+      "id": "shalini",
+      "name": "Shalini",
+      "api_key_env": "SHALINI_API_KEY",
+      "api_secret_env": "SHALINI_API_SECRET",
+      "active": true,
+      "endpoint": "https://api.india.delta.exchange",
+      "assumed_capital_usd": 10000,
+      "usd_inr_rate": 85,
+      "note": "Shalini account"
+    },
+    {
+      "id": "mom",
+      "name": "Mom",
+      "api_key_env": "MOM_API_KEY",
+      "api_secret_env": "MOM_API_SECRET",
+      "active": true,
+      "endpoint": "https://api.india.delta.exchange",
+      "assumed_capital_usd": 10000,
+      "usd_inr_rate": 85,
+      "note": "Mom account"
+    }
+  ]
+}

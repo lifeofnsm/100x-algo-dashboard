@@ -1,0 +1,17 @@
+# API keys — never push these
+run_all.ps1
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Debug files
+debug_*.py
+debug_output.txt
+
+# Raw order cache (large, not needed for dashboard)
+data/*/orders_store.json
+
+# Secrets
+.env
+*.env
