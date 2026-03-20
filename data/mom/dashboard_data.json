@@ -2,7 +2,7 @@
   "meta": {
     "account_id": "mom",
     "account_name": "Mom",
-    "last_updated": "2026-03-20T07:28:29.073472+00:00",
+    "last_updated": "2026-03-20T07:29:46.173684+00:00",
     "usd_inr_rate": 85.0,
     "assumed_capital_usd": 2248.24,
     "assumed_capital_inr": 191100.0,
@@ -11,12 +11,12 @@
     "total_withdrawals_inr": null,
     "net_capital_inr": 191100.0,
     "capital_source": "api_transactions",
-    "wallet_balance_usd": 2608.2226,
-    "wallet_balance_inr": 221699.0,
+    "wallet_balance_usd": 2608.9553,
+    "wallet_balance_inr": 221761.0,
     "wallet_collateral_usd": 2482.4459,
-    "wallet_unrealized_usd": 125.7767,
-    "wallet_net_pnl_usd": 359.98,
-    "wallet_net_pnl_inr": 30598.0,
+    "wallet_unrealized_usd": 126.5094,
+    "wallet_net_pnl_usd": 360.72,
+    "wallet_net_pnl_inr": 30661.0,
     "wallet_nav_growth_pct": 16.0,
     "actual_capital_usd": 2248.24,
     "actual_capital_inr": 191100.0,
@@ -313,8 +313,8 @@
       "entry_val_inr": 15780624.0,
       "fees_usd": 0.9858,
       "fees_inr": 83.8,
-      "unrealized_pnl_usd": 81.6305,
-      "unrealized_pnl_inr": 6938.59,
+      "unrealized_pnl_usd": 82.17,
+      "unrealized_pnl_inr": 6984.45,
       "source": "live_position"
     },
     {
@@ -328,8 +328,8 @@
       "entry_val_inr": 122746.0,
       "fees_usd": 0.7668,
       "fees_inr": 65.18,
-      "unrealized_pnl_usd": 44.1462,
-      "unrealized_pnl_inr": 3752.43,
+      "unrealized_pnl_usd": 44.3394,
+      "unrealized_pnl_inr": 3768.85,
       "source": "live_position"
     }
   ]
