@@ -61,6 +61,11 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);min
 }
 .acc-select:hover,.acc-select:focus{border-bottom-color:var(--gold);color:var(--gold)}
 .acc-select option{background:var(--card);color:var(--text)}
+/* LOGOUT */
+.logout-btn{display:flex;align-items:center;gap:5px;background:transparent;border:1px solid var(--border);
+  border-radius:6px;padding:4px 10px;font-family:'Poppins',sans-serif;font-size:11px;font-weight:500;
+  color:var(--text2);cursor:pointer;transition:all .2s}
+.logout-btn:hover{border-color:var(--red);color:var(--red)}
 /* THEME TOGGLE */
 .theme-toggle{display:flex;align-items:center;gap:6px;background:transparent;border:none;
   padding:3px 0;cursor:pointer;font-family:'Poppins',sans-serif;font-size:11px;font-weight:500;
@@ -340,6 +345,7 @@ canvas{max-width:100%}
           <span id="themeIcon">🌙</span>
           <div class="toggle-track"><div class="toggle-thumb"></div></div>
         </button>
+        <button class="logout-btn" onclick="logout()" title="Lock dashboard">🔒 Lock</button>
       </div>
     </div>
     <div class="stitle">
@@ -624,6 +630,13 @@ async function checkPw() {
 function togglePwEye() {
   const inp = document.getElementById('pwInput');
   inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function logout() {
+  sessionStorage.removeItem('100x_auth');
+  document.getElementById('pwInput').value = '';
+  document.getElementById('pwErr').textContent = '';
+  document.getElementById('pwGate').style.display = 'flex';
 }
 
 // Check session on load — skip gate if already authenticated
