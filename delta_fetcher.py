@@ -360,7 +360,8 @@ def build_open_trades_from_positions(positions, all_orders=None):
             "entry_val_inr": round(abs(size) * entry_px * USD_INR, 0),
             "fees_usd": round(fees_usd, 4),
             "fees_inr": round(fees_usd * USD_INR, 2),
-            "unrealized_pnl_usd": round(float(pos.get("realized_pnl") or 0), 4),
+            "unrealized_pnl_usd": round(float(pos.get("unrealized_pnl") or pos.get("realized_pnl") or 0), 4),
+            "unrealized_pnl_inr": round(float(pos.get("unrealized_pnl") or pos.get("realized_pnl") or 0) * USD_INR, 2),
             "source": "live_position",
         })
     return open_trades

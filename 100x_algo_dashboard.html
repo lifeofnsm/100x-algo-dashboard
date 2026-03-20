@@ -577,14 +577,13 @@ canvas{max-width:100%}
         <thead>
           <tr>
             <th>#</th>
-            <th>Entry Date</th>
             <th>Contract</th>
             <th>Direction</th>
             <th>Qty</th>
             <th>Entry Price ($)</th>
             <th>Entry Value (&#8377;)</th>
             <th>Fees (&#8377;)</th>
-            <th>Open Since</th>
+            <th>Unrealized PnL</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -1619,24 +1618,25 @@ function renderOpenTrades(openTrades) {
   noOpen.style.display = 'none';
   count.textContent = openTrades.length;
 
-  const now = Date.now();
   body.innerHTML = openTrades.map((t, i) => {
-    const entryMs = t.entry_time ? new Date(t.entry_time).getTime() : null;
-    const openSince = (entryMs && !isNaN(entryMs)) ? fmtDur((now - entryMs) / 3600000) : '—';
-    const entryDisplay = (t.entry && t.entry !== 'Open Position' && t.entry !== '') ? t.entry : '—';
     const dc = t.direction === 'LONG' ? 'dlong' : 'dshort';
     const symColor = getContractColor(t.contract);
+    const upnl_inr = t.unrealized_pnl_inr || (t.unrealized_pnl_usd || 0) * INR_RATE;
+    const upnlClass = upnl_inr >= 0 ? 'class="gd"' : 'class="dn"';
+    const upnlSign = upnl_inr >= 0 ? '+' : '';
+    const upnlDisplay = upnl_inr !== 0
+      ? '<span ' + upnlClass + '>' + upnlSign + '\u20b9' + Math.round(upnl_inr).toLocaleString('en-IN') + '</span>'
+      : '<span style="color:var(--text2)">—</span>';
 
     return '<tr>'
       + '<td style="color:var(--text3)">' + (i + 1) + '</td>'
-      + '<td style="color:var(--text2);font-size:10.5px">' + entryDisplay + '</td>'
       + '<td><span class="sym-pill" style="color:' + symColor + ';background:' + symColor + '22">' + t.contract + '</span></td>'
       + '<td class="' + dc + '">' + t.direction + '</td>'
       + '<td style="color:var(--text2)">' + t.qty.toLocaleString() + '</td>'
       + '<td>$' + (t.entry_px % 1 === 0 ? t.entry_px.toLocaleString('en-US') : t.entry_px.toLocaleString('en-US', {minimumFractionDigits:1,maximumFractionDigits:2})) + '</td>'
       + '<td style="color:var(--text2)">\u20b9' + Math.abs(t.entry_val_inr).toLocaleString('en-IN') + '</td>'
       + '<td style="color:var(--red)">\u20b9' + Math.abs(t.fees_inr).toLocaleString('en-IN') + '</td>'
-      + '<td style="color:var(--gold)">' + openSince + '</td>'
+      + '<td>' + upnlDisplay + '</td>'
       + '<td><span class="open-pill"><span class="ld"></span>OPEN</span></td>'
       + '</tr>';
   }).join('');
