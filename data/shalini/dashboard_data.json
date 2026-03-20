@@ -2,7 +2,7 @@
   "meta": {
     "account_id": "shalini",
     "account_name": "Shalini",
-    "last_updated": "2026-03-20T07:41:04.949870+00:00",
+    "last_updated": "2026-03-20T07:50:47.566028+00:00",
     "usd_inr_rate": 85.0,
     "assumed_capital_usd": 4705.88,
     "assumed_capital_inr": 400000.0,
@@ -11,13 +11,13 @@
     "total_withdrawals_inr": null,
     "net_capital_inr": 400000.0,
     "capital_source": "manual_config",
-    "wallet_balance_usd": 13281.4461,
-    "wallet_balance_inr": 1128923.0,
+    "wallet_balance_usd": 13283.9165,
+    "wallet_balance_inr": 1129133.0,
     "wallet_collateral_usd": 12535.4705,
-    "wallet_unrealized_usd": 745.9756,
-    "wallet_net_pnl_usd": 8575.57,
-    "wallet_net_pnl_inr": 728923.0,
-    "wallet_nav_growth_pct": 182.2,
+    "wallet_unrealized_usd": 748.446,
+    "wallet_net_pnl_usd": 8578.04,
+    "wallet_net_pnl_inr": 729133.0,
+    "wallet_nav_growth_pct": 182.3,
     "actual_capital_usd": null,
     "actual_capital_inr": null,
     "active": true,
@@ -8923,8 +8923,8 @@
       "entry_val_inr": 90506997.0,
       "fees_usd": 6.2823,
       "fees_inr": 533.99,
-      "unrealized_pnl_usd": 416.976,
-      "unrealized_pnl_inr": 35442.96,
+      "unrealized_pnl_usd": 418.642,
+      "unrealized_pnl_inr": 35584.57,
       "source": "live_position"
     },
     {
@@ -8938,8 +8938,8 @@
       "entry_val_inr": 1022191.0,
       "fees_usd": 7.0952,
       "fees_inr": 603.09,
-      "unrealized_pnl_usd": 328.9996,
-      "unrealized_pnl_inr": 27964.97,
+      "unrealized_pnl_usd": 329.804,
+      "unrealized_pnl_inr": 28033.34,
       "source": "live_position"
     }
   ]
