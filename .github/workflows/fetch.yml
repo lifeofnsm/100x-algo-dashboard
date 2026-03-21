@@ -62,7 +62,7 @@ jobs:
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add data/ accounts_list.json
+          git add data/ accounts_list.json data/trade_state.json || true
           # Only commit if there are actual changes (avoids empty commits)
           if git diff --staged --quiet; then
             echo "No changes to commit — data is up to date."

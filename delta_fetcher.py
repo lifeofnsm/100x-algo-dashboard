@@ -1113,61 +1113,160 @@ def write_accounts_list(accounts, has_combined=False):
 
 
 # ── DISCORD NOTIFICATION ──────────────────────────────────────────────────────
-DASHBOARD_URL = "https://www.natarajmalavade.in/100x-algo-dashboard"
-
-def _load_combined_stats(combined_ok):
-    """Return (nav_inr, pnl_inr, cagr_pct) from combined dashboard_data.json."""
-    combined_path = os.path.join("data", "combined", "dashboard_data.json")
-    if combined_ok and os.path.exists(combined_path):
-        with open(combined_path, encoding="utf-8") as f:
-            cd = json.load(f)
-        cs = cd.get("stats", {})
-        cm = cd.get("meta", {})
-        nav  = float(cm.get("wallet_balance_inr") or 0)
-        pnl  = float(cm.get("wallet_net_pnl_inr") or cs.get("total_pnl_inr") or 0)
-        cagr = float(cs.get("cagr_pct") or 0)
-        return nav, pnl, cagr
-    return 0.0, 0.0, 0.0
-
-def _load_account_stats(acc_id):
-    """Return (nav_inr, pnl_inr, cagr_pct) for a single account."""
-    path = os.path.join("data", acc_id, "dashboard_data.json")
-    if not os.path.exists(path):
-        return None, None, None
-    try:
-        with open(path, encoding="utf-8") as f:
-            d = json.load(f)
-        cs = d.get("stats", {})
-        cm = d.get("meta", {})
-        nav  = float(cm.get("wallet_balance_inr") or 0)
-        pnl  = float(cm.get("wallet_net_pnl_inr") or cs.get("total_pnl_inr") or 0)
-        cagr = float(cs.get("cagr_pct") or 0)
-        return nav, pnl, cagr
-    except Exception:
-        return None, None, None
-
-def _fmt_inr(v):
-    try:
-        v = float(v or 0)
-        return "\u20b9{:,.0f}".format(abs(v))
-    except Exception:
-        return "\u20b90"
-
-def _fmt_pnl(v):
-    try:
-        v = float(v or 0)
-        sign = "+" if v >= 0 else "\u2212"
-        return sign + "\u20b9{:,.0f}".format(abs(v))
-    except Exception:
-        return "+\u20b90"
-
-
-def send_discord_short_update(combined_ok):
-    """Short 4-hour update: just NAV / PnL / CAGR + dashboard link."""
+def send_discord_summary(results, combined_ok):
     webhook_url = os.environ.get("DISCORD_WEBHOOK", "").strip()
     if not webhook_url:
-        print("[discord] No webhook set — skipping short update.")
+        print("[discord] No webhook set — skipping.")
         return
+
+    # Normalise URL (discordapp.com -> discord.com)
+    webhook_url = webhook_url.replace("discordapp.com", "discord.com")
+    print("[discord] Sending summary...")
+
+    def inr(v):
+        try:
+            return "Rs.{:,.0f}".format(float(v or 0))
+        except:
+            return "Rs.0"
+
+    try:
+        from datetime import timezone, timedelta
+        now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+        ts = now_ist.strftime("%d %b %Y, %I:%M %p IST")
+
+        # Read combined stats for quick summary
+        combined_path = os.path.join("data", "combined", "dashboard_data.json")
+        c_nav_str = "\u20b90"
+        c_pnl_str = "\u20b90"
+        c_cagr_str = "0%"
+        try:
+            if combined_ok and os.path.exists(combined_path):
+                with open(combined_path, encoding="utf-8") as f:
+                    cd = json.load(f)
+                cs = cd.get("stats", {})
+                cm = cd.get("meta", {})
+                c_nav  = float(cm.get("wallet_balance_inr") or 0)
+                c_pnl  = float(cm.get("wallet_net_pnl_inr") or cs.get("total_pnl_inr") or 0)
+                c_cagr = cs.get("cagr_pct", 0)
+                c_sign = "+" if c_pnl >= 0 else "-"
+                c_nav_str  = "\u20b9{:,.0f}".format(c_nav)
+                c_pnl_str  = c_sign + "\u20b9{:,.0f}".format(abs(c_pnl))
+                c_cagr_str = str(c_cagr) + "%"
+        except Exception as e3:
+            print("[discord] Combined error: " + str(e3))
+
+        lines = [
+            "\U0001f4ca  **100X Algo \u2014 Data Updated**",
+            "\U0001f550  " + ts,
+            "",
+            "\U0001f3af  NAV: **" + c_nav_str + "**   PnL: **" + c_pnl_str + "**   CAGR: **" + c_cagr_str + "**",
+            "",
+            "> \U0001f517  **[View Dashboard](https://www.natarajmalavade.in/100x-algo-dashboard)**"
+        ]
+
+        resp = requests.post(webhook_url, json={"content": "\n".join(lines)}, timeout=15)
+        if resp.status_code in (200, 204):
+            print("[discord] Sent successfully.")
+        else:
+            print("[discord] Failed: HTTP " + str(resp.status_code) + " — " + resp.text)
+
+    except Exception as e:
+        import traceback
+        print("[discord] ERROR: " + str(e))
+        traceback.print_exc()
+
+
+# ── TRADE STATE TRACKING (for event-based Discord alerts) ─────────────────────
+TRADE_STATE_FILE = os.path.join("data", "trade_state.json")
+
+
+def load_trade_state():
+    """Load the saved trade state from the previous run."""
+    if os.path.exists(TRADE_STATE_FILE):
+        try:
+            with open(TRADE_STATE_FILE) as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"[trade_state] Failed to load: {e}")
+    return {}
+
+
+def save_trade_state(accounts):
+    """
+    Save current trade counts per account to trade_state.json.
+    This file is committed to the repo so it persists between GitHub Actions runs.
+    Returns the new state dict.
+    """
+    state = {}
+    for acc in accounts:
+        if not acc.get("active", True):
+            continue
+        acc_id = acc["id"]
+        data_file = os.path.join("data", acc_id, "dashboard_data.json")
+        if not os.path.exists(data_file):
+            continue
+        try:
+            with open(data_file) as f:
+                d = json.load(f)
+            trades = d.get("trades", [])
+            open_trades = d.get("open_trades", [])
+            state[acc_id] = {
+                "closed_count": len(trades),
+                "open_count": len(open_trades),
+                "last_closed_exit": trades[-1].get("exit_time", "") if trades else "",
+            }
+        except Exception as e:
+            print(f"[trade_state] Error reading {acc_id}: {e}")
+
+    os.makedirs("data", exist_ok=True)
+    try:
+        with open(TRADE_STATE_FILE, "w") as f:
+            json.dump(state, f, indent=2)
+        print(f"[trade_state] Saved state for {list(state.keys())}")
+    except Exception as e:
+        print(f"[trade_state] Failed to save: {e}")
+    return state
+
+
+def detect_trade_events(old_state, new_state, accounts):
+    """
+    Compare old vs new trade state.
+    Returns list of human-readable event strings (empty if no changes).
+    """
+    if not old_state:
+        # First ever run — no previous baseline to compare against
+        return []
+
+    acc_name_map = {acc["id"]: acc.get("name", acc["id"]) for acc in accounts}
+    events = []
+
+    for acc_id, new in new_state.items():
+        old = old_state.get(acc_id, {})
+        name = acc_name_map.get(acc_id, acc_id)
+
+        old_closed = old.get("closed_count", 0)
+        new_closed = new.get("closed_count", 0)
+        old_open = old.get("open_count", 0)
+        new_open = new.get("open_count", 0)
+
+        if new_closed > old_closed:
+            diff = new_closed - old_closed
+            events.append(f"\U0001f534 **{name}**: {diff} trade(s) closed")
+
+        if new_open > old_open:
+            diff = new_open - old_open
+            events.append(f"\U0001f7e2 **{name}**: {diff} new position(s) opened")
+
+    return events
+
+
+def send_trade_event_alert(events):
+    """Send a Discord alert when trades are closed or new positions are opened."""
+    webhook_url = os.environ.get("DISCORD_WEBHOOK", "").strip()
+    if not webhook_url:
+        print("[discord] No webhook — skipping trade event alert.")
+        return
+
     webhook_url = webhook_url.replace("discordapp.com", "discord.com")
 
     try:
@@ -1175,110 +1274,25 @@ def send_discord_short_update(combined_ok):
         now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
         ts = now_ist.strftime("%d %b %Y, %I:%M %p IST")
 
-        nav, pnl, cagr = _load_combined_stats(combined_ok)
-
         lines = [
-            "\U0001f4ca  **100X Algo \u2014 Data Updated**",
+            "\U0001f514  **100X Algo \u2014 Trade Event**",
             "\U0001f550  " + ts,
             "",
-            "\U0001f3af  NAV: **" + _fmt_inr(nav) + "**   PnL: **" + _fmt_pnl(pnl) + "**   CAGR: **" + str(round(cagr, 1)) + "%**",
+        ] + events + [
             "",
-            "> \U0001f517  **[View Dashboard](" + DASHBOARD_URL + ")**"
+            "> \U0001f517  **[View Dashboard](https://www.natarajmalavade.in/100x-algo-dashboard)**",
         ]
 
         resp = requests.post(webhook_url, json={"content": "\n".join(lines)}, timeout=15)
         if resp.status_code in (200, 204):
-            print("[discord] Short update sent.")
+            print("[discord] Trade event alert sent.")
         else:
-            print("[discord] Short update failed: HTTP " + str(resp.status_code) + " — " + resp.text)
+            print("[discord] Trade event alert failed: HTTP " + str(resp.status_code) + " — " + resp.text)
 
     except Exception as e:
         import traceback
-        print("[discord] Short update ERROR: " + str(e))
+        print("[discord] Trade event alert ERROR: " + str(e))
         traceback.print_exc()
-
-
-def send_discord_daily_summary(accounts, combined_ok):
-    """Morning daily summary: combined stats + per-account breakdown."""
-    webhook_url = os.environ.get("DISCORD_WEBHOOK", "").strip()
-    if not webhook_url:
-        print("[discord] No webhook set — skipping daily summary.")
-        return
-    webhook_url = webhook_url.replace("discordapp.com", "discord.com")
-
-    try:
-        from datetime import timezone, timedelta
-        now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
-        date_str = now_ist.strftime("%d %b %Y")
-        time_str = now_ist.strftime("%I:%M %p IST")
-
-        nav, pnl, cagr = _load_combined_stats(combined_ok)
-
-        lines = [
-            "\U0001f4ca  **100X Algo \u2014 Daily Summary**",
-            "\U0001f4c5  " + date_str + "  \u2022  \U0001f550  " + time_str,
-            "",
-            "**Portfolio**",
-            "\U0001f4b0  NAV: **" + _fmt_inr(nav) + "**   \U0001f4c8  PnL: **" + _fmt_pnl(pnl) + "**   \U0001f680  CAGR: **" + str(round(cagr, 1)) + "%**",
-            "",
-            "**Individual Accounts**",
-        ]
-
-        # Per-account rows (active accounts only)
-        active_accs = [a for a in accounts if a.get("active")]
-        for acc in active_accs:
-            acc_nav, acc_pnl, acc_cagr = _load_account_stats(acc["id"])
-            if acc_nav is None:
-                lines.append("\u2022  **" + acc["name"] + "** \u2014 no data")
-            else:
-                pnl_str  = _fmt_pnl(acc_pnl)
-                cagr_str = str(round(acc_cagr, 1)) + "%"
-                lines.append(
-                    "\u2022  **" + acc["name"] + "**  \u2014  NAV: " + _fmt_inr(acc_nav) +
-                    "  |  PnL: " + pnl_str +
-                    "  |  CAGR: " + cagr_str
-                )
-
-        lines += [
-            "",
-            "> \U0001f517  **[View Dashboard](" + DASHBOARD_URL + ")**"
-        ]
-
-        resp = requests.post(webhook_url, json={"content": "\n".join(lines)}, timeout=15)
-        if resp.status_code in (200, 204):
-            print("[discord] Daily summary sent.")
-        else:
-            print("[discord] Daily summary failed: HTTP " + str(resp.status_code) + " — " + resp.text)
-
-    except Exception as e:
-        import traceback
-        print("[discord] Daily summary ERROR: " + str(e))
-        traceback.print_exc()
-
-
-def send_discord_summary(results, combined_ok, accounts=None):
-    """
-    Route to the right Discord message based on time of day (IST):
-      06:00 – 08:59 IST  →  daily summary (detailed, once a day)
-      all other times    →  short update (4-hour data-refresh alert)
-    The morning run falls at 00:00 UTC = 05:30 IST, close enough.
-    """
-    webhook_url = os.environ.get("DISCORD_WEBHOOK", "").strip()
-    if not webhook_url:
-        print("[discord] No webhook set — skipping.")
-        return
-
-    from datetime import timezone, timedelta
-    now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
-    ist_hour = now_ist.hour
-
-    # Morning window: 5–8 AM IST covers the 00:00 UTC run (5:30 IST)
-    if 5 <= ist_hour <= 8:
-        print("[discord] Morning run detected — sending daily summary.")
-        send_discord_daily_summary(accounts or [], combined_ok)
-    else:
-        print("[discord] Regular run — sending short update.")
-        send_discord_short_update(combined_ok)
 
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
@@ -1290,6 +1304,10 @@ if __name__ == "__main__":
 
     accounts = load_accounts()
     print(f"Loaded {len(accounts)} account(s)\n")
+
+    # Load previous trade state BEFORE fetching — used for event detection
+    old_trade_state = load_trade_state()
+    print(f"[trade_state] Previous state: {list(old_trade_state.keys()) or 'none (first run)'}")
 
     results = {}
     for acc in accounts:
@@ -1316,5 +1334,24 @@ if __name__ == "__main__":
     print(f"  combined: {'OK' if combined_ok else 'SKIPPED/ERROR'}")
     print("=" * 60)
 
-    # Send Discord summary
-    send_discord_summary(results, combined_ok, accounts=accounts)
+    # Save new trade state and detect events
+    new_trade_state = save_trade_state(accounts)
+    trade_events = detect_trade_events(old_trade_state, new_trade_state, accounts)
+
+    # ── Discord notifications ──────────────────────────────────────────────────
+    # Morning daily summary: only at 00:00 UTC (= 5:30 AM IST)
+    now_utc = datetime.now(timezone.utc)
+    if now_utc.hour == 0:
+        print("[discord] Morning run detected (00:00 UTC) — sending daily summary.")
+        send_discord_summary(results, combined_ok)
+    else:
+        print(f"[discord] Not a morning run (UTC hour={now_utc.hour}) — skipping daily summary.")
+
+    # Trade event alert: any run, only if something actually changed
+    if trade_events:
+        print(f"[discord] Trade events detected: {trade_events}")
+        send_trade_event_alert(trade_events)
+    elif old_trade_state:
+        print("[discord] No trade events detected — no alert sent.")
+    else:
+        print("[discord] First run — initial trade state saved, no alert sent.")
