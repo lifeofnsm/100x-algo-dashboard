@@ -3,8 +3,8 @@ name: Fetch Delta Exchange Trades
 # ─── TRIGGERS ─────────────────────────────────────────────────────────────────
 on:
   schedule:
-    # Runs every 4 hours (UTC) — 6 times a day
-    - cron: '0 */4 * * *'
+    # Runs every hour (UTC) — 24 times a day
+    - cron: '0 * * * *'
 
   # Allows manual trigger from the Actions tab in GitHub
   workflow_dispatch:
