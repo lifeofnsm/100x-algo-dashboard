@@ -1231,8 +1231,7 @@ def save_trade_state(accounts):
 def detect_trade_events(old_state, new_state, accounts):
     """
     Compare old vs new trade state.
-    Returns list of event strings with trade details (empty if no changes).
-    Each entry may be multi-line (header + per-trade detail rows).
+    Returns list of human-readable event strings (empty if no changes).
     """
     if not old_state:
         # First ever run — no previous baseline to compare against
@@ -1247,55 +1246,16 @@ def detect_trade_events(old_state, new_state, accounts):
 
         old_closed = old.get("closed_count", 0)
         new_closed = new.get("closed_count", 0)
-        old_open   = old.get("open_count", 0)
-        new_open   = new.get("open_count", 0)
-
-        # Load dashboard data for trade details
-        dashboard = {}
-        data_file = os.path.join("data", acc_id, "dashboard_data.json")
-        if os.path.exists(data_file):
-            try:
-                with open(data_file) as f:
-                    dashboard = json.load(f)
-            except Exception:
-                pass
+        old_open = old.get("open_count", 0)
+        new_open = new.get("open_count", 0)
 
         if new_closed > old_closed:
             diff = new_closed - old_closed
-            label = "trade" if diff == 1 else "trades"
-            lines = [f"\U0001f534 **{name}**: {diff} {label} closed"]
-            all_trades = dashboard.get("trades", [])
-            # Most recent `diff` trades are the new ones (sorted by exit_time)
-            new_trades = all_trades[-diff:] if len(all_trades) >= diff else all_trades
-            for t in new_trades[:5]:   # cap at 5 to stay within Discord 2000-char limit
-                contract  = t.get("contract", "?")
-                direction = t.get("direction", "?")
-                qty       = t.get("qty", 0)
-                entry_px  = t.get("entry_px", 0)
-                exit_px   = t.get("exit_px", 0)
-                pnl       = t.get("pnl_usd", 0)
-                pnl_str   = ("+" if pnl >= 0 else "") + f"${pnl:.2f}"
-                lines.append(
-                    f"  \u21b3 `{contract}` | {direction} | Qty: {qty} | "
-                    f"Entry: ${entry_px:,.2f} | Exit: ${exit_px:,.2f} | PnL: {pnl_str}"
-                )
-            events.append("\n".join(lines))
+            events.append(f"\U0001f534 **{name}**: {diff} trade(s) closed")
 
         if new_open > old_open:
             diff = new_open - old_open
-            label = "position" if diff == 1 else "positions"
-            lines = [f"\U0001f7e2 **{name}**: {diff} new {label} opened"]
-            all_open = dashboard.get("open_trades", [])
-            new_positions = all_open[-diff:] if len(all_open) >= diff else all_open
-            for t in new_positions[:5]:
-                contract  = t.get("contract", "?")
-                direction = t.get("direction", "?")
-                qty       = t.get("qty", 0)
-                entry_px  = t.get("entry_px", 0)
-                lines.append(
-                    f"  \u21b3 `{contract}` | {direction} | Qty: {qty} | Entry: ${entry_px:,.2f}"
-                )
-            events.append("\n".join(lines))
+            events.append(f"\U0001f7e2 **{name}**: {diff} new position(s) opened")
 
     return events
 
