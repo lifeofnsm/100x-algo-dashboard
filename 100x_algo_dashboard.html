@@ -660,6 +660,20 @@ canvas{max-width:100%}
 
   <!-- ═══════ TAB: OPEN TRADES ═══════ -->
   <div class="tab-pane" id="tab-open">
+    <div class="kpi-grid" id="openKpiGrid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;display:none">
+      <div class="kcard b">
+        <div class="kl">Open Positions</div>
+        <div class="kv" id="kpiOpenCount">—</div>
+      </div>
+      <div class="kcard" id="kpiUpnlCard">
+        <div class="kl">Unrealized PnL</div>
+        <div class="kv" id="kpiUpnl">—</div>
+      </div>
+      <div class="kcard go">
+        <div class="kl">Total Exposure</div>
+        <div class="kv" id="kpiExposure">—</div>
+      </div>
+    </div>
     <div class="open-banner" id="openBanner">
       <div class="ld"></div>
       <div><strong id="openCount">0</strong> open position(s) currently tracked — entry filled, waiting for exit</div>
@@ -1780,12 +1794,31 @@ function renderOpenTrades(openTrades) {
   const body = document.getElementById('openBody');
   const count = document.getElementById('openCount');
 
+  const kpiGrid    = document.getElementById('openKpiGrid');
+  const kpiCount   = document.getElementById('kpiOpenCount');
+  const kpiUpnl    = document.getElementById('kpiUpnl');
+  const kpiUpnlCard= document.getElementById('kpiUpnlCard');
+  const kpiExposure= document.getElementById('kpiExposure');
+
   if (!openTrades || openTrades.length === 0) {
     banner.style.display = 'none';
     wrap.style.display = 'none';
     noOpen.style.display = 'block';
+    kpiGrid.style.display = 'none';
     return;
   }
+
+  // Compute KPI values
+  const totalUpnlInr   = openTrades.reduce((s, t) => s + (t.unrealized_pnl_inr || (t.unrealized_pnl_usd || 0) * INR_RATE), 0);
+  const totalExposureInr = openTrades.reduce((s, t) => s + (t.entry_val_inr || 0), 0);
+  const upnlSign = totalUpnlInr >= 0 ? '+' : '';
+  const upnlColor = totalUpnlInr >= 0 ? 'var(--green)' : 'var(--red)';
+
+  kpiGrid.style.display = 'grid';
+  kpiCount.textContent  = openTrades.length;
+  kpiUpnl.innerHTML     = '<span style="color:' + upnlColor + '">' + upnlSign + '\u20b9' + Math.round(totalUpnlInr).toLocaleString('en-IN') + '</span>';
+  kpiUpnlCard.className = 'kcard ' + (totalUpnlInr >= 0 ? 'g' : 'r');
+  kpiExposure.textContent = '\u20b9' + Math.round(totalExposureInr).toLocaleString('en-IN');
 
   banner.style.display = 'flex';
   wrap.style.display = 'block';
