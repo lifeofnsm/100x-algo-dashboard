@@ -1119,54 +1119,89 @@ def send_discord_summary(results, combined_ok):
         print("[discord] No webhook set — skipping.")
         return
 
-    # Normalise URL (discordapp.com -> discord.com)
     webhook_url = webhook_url.replace("discordapp.com", "discord.com")
-    print("[discord] Sending summary...")
-
-    def inr(v):
-        try:
-            return "Rs.{:,.0f}".format(float(v or 0))
-        except:
-            return "Rs.0"
+    print("[discord] Sending morning summary...")
 
     try:
         from datetime import timezone, timedelta
         now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
-        ts = now_ist.strftime("%d %b %Y, %I:%M %p IST")
+        date_str = now_ist.strftime("%d %b %Y")
+        time_str = now_ist.strftime("%I:%M %p IST")
 
-        # Read combined stats for quick summary
+        def fmt_inr(v):
+            try:
+                return "\u20b9{:,.0f}".format(float(v or 0))
+            except:
+                return "\u20b90"
+
+        def fmt_pnl(v):
+            try:
+                val = float(v or 0)
+                sign = "+" if val >= 0 else ""
+                return sign + "\u20b9{:,.0f}".format(abs(val))
+            except:
+                return "\u20b90"
+
+        # ── Combined portfolio stats ───────────────────────────────────────────
         combined_path = os.path.join("data", "combined", "dashboard_data.json")
-        c_nav_str = "\u20b90"
-        c_pnl_str = "\u20b90"
-        c_cagr_str = "0%"
+        lines = [
+            "\U0001f4ca  **100X Algo \u2014 Daily Summary**",
+            "\U0001f4c5  " + date_str + "  \u2022  \U0001f550  " + time_str,
+            "",
+        ]
+
         try:
             if combined_ok and os.path.exists(combined_path):
                 with open(combined_path, encoding="utf-8") as f:
                     cd = json.load(f)
                 cs = cd.get("stats", {})
                 cm = cd.get("meta", {})
-                c_nav  = float(cm.get("wallet_balance_inr") or 0)
-                c_pnl  = float(cm.get("wallet_net_pnl_inr") or cs.get("total_pnl_inr") or 0)
-                c_cagr = cs.get("cagr_pct", 0)
-                c_sign = "+" if c_pnl >= 0 else "-"
-                c_nav_str  = "\u20b9{:,.0f}".format(c_nav)
-                c_pnl_str  = c_sign + "\u20b9{:,.0f}".format(abs(c_pnl))
-                c_cagr_str = str(c_cagr) + "%"
+                c_nav  = fmt_inr(cm.get("wallet_balance_inr") or 0)
+                c_pnl  = fmt_pnl(cm.get("wallet_net_pnl_inr") or cs.get("total_pnl_inr") or 0)
+                c_cagr = str(cs.get("cagr_pct", 0)) + "%"
+                lines += [
+                    "**Portfolio**",
+                    "\U0001f4b0  NAV: **" + c_nav + "**   \U0001f4c8  PnL: **" + c_pnl + "**   \U0001f680  CAGR: **" + c_cagr + "**",
+                    "",
+                ]
         except Exception as e3:
-            print("[discord] Combined error: " + str(e3))
+            print("[discord] Combined stats error: " + str(e3))
 
-        lines = [
-            "\U0001f4ca  **100X Algo \u2014 Data Updated**",
-            "\U0001f550  " + ts,
-            "",
-            "\U0001f3af  NAV: **" + c_nav_str + "**   PnL: **" + c_pnl_str + "**   CAGR: **" + c_cagr_str + "**",
-            "",
-            "> \U0001f517  **[View Dashboard](https://www.natarajmalavade.in/100x-algo-dashboard)**"
-        ]
+        # ── Individual account stats ───────────────────────────────────────────
+        account_lines = []
+        try:
+            accs = load_accounts()
+            for acc in accs:
+                if not acc.get("active", True):
+                    continue
+                acc_id   = acc["id"]
+                acc_name = acc.get("name", acc_id)
+                data_file = os.path.join("data", acc_id, "dashboard_data.json")
+                if not os.path.exists(data_file):
+                    continue
+                with open(data_file, encoding="utf-8") as f:
+                    d = json.load(f)
+                cs = d.get("stats", {})
+                cm = d.get("meta", {})
+                nav  = fmt_inr(cm.get("wallet_balance_inr") or 0)
+                pnl  = fmt_pnl(cm.get("wallet_net_pnl_inr") or cs.get("total_pnl_inr") or 0)
+                cagr = str(cs.get("cagr_pct", 0)) + "%"
+                account_lines.append(
+                    f"\u2022 **{acc_name}** \u2014 NAV: {nav} | PnL: {pnl} | CAGR: {cagr}"
+                )
+        except Exception as ae:
+            print("[discord] Account detail error: " + str(ae))
+
+        if account_lines:
+            lines.append("**Individual Accounts**")
+            lines.extend(account_lines)
+            lines.append("")
+
+        lines.append("> \U0001f517  **[View Dashboard](https://www.natarajmalavade.in/100x-algo-dashboard)**")
 
         resp = requests.post(webhook_url, json={"content": "\n".join(lines)}, timeout=15)
         if resp.status_code in (200, 204):
-            print("[discord] Sent successfully.")
+            print("[discord] Morning summary sent successfully.")
         else:
             print("[discord] Failed: HTTP " + str(resp.status_code) + " — " + resp.text)
 
