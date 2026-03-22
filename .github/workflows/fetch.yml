@@ -3,11 +3,18 @@ name: Fetch Delta Exchange Trades
 # ─── TRIGGERS ─────────────────────────────────────────────────────────────────
 on:
   schedule:
-    # Runs every hour (UTC) — 24 times a day
+    # Runs every hour (UTC) — 24 times a day (trade event detection)
     - cron: '0 * * * *'
+    # Dedicated morning summary run at 00:00 UTC (5:30 AM IST) daily
+    - cron: '0 0 * * *'
 
   # Allows manual trigger from the Actions tab in GitHub
   workflow_dispatch:
+    inputs:
+      morning_run:
+        description: 'Send morning summary?'
+        required: false
+        default: 'false'
 
 # ─── PERMISSIONS ──────────────────────────────────────────────────────────────
 permissions:
@@ -54,6 +61,7 @@ jobs:
           NATARAJ_API_KEY:    ${{ secrets.NATARAJ_API_KEY }}
           NATARAJ_API_SECRET: ${{ secrets.NATARAJ_API_SECRET }}
           DISCORD_WEBHOOK:    ${{ secrets.DISCORD_WEBHOOK }}
+          MORNING_RUN: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') && 'true' || github.event.inputs.morning_run || 'false' }}
         run: python delta_fetcher.py
 
       # 5. Commit the updated JSON files back to the repo

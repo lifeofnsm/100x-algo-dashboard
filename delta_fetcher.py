@@ -1379,13 +1379,14 @@ if __name__ == "__main__":
     trade_events = detect_trade_events(old_trade_state, new_trade_state, accounts)
 
     # ── Discord notifications ──────────────────────────────────────────────────
-    # Morning daily summary: only at 00:00 UTC (= 5:30 AM IST)
-    now_utc = datetime.now(timezone.utc)
-    if now_utc.hour == 0:
-        print("[discord] Morning run detected (00:00 UTC) — sending daily summary.")
+    # Morning daily summary: triggered by MORNING_RUN=true env var
+    # Set by the dedicated 00:00 UTC cron in fetch.yml (= 5:30 AM IST)
+    is_morning_run = os.environ.get("MORNING_RUN", "false").strip().lower() == "true"
+    if is_morning_run:
+        print("[discord] Morning run flag set — sending daily summary.")
         send_discord_summary(results, combined_ok)
     else:
-        print(f"[discord] Not a morning run (UTC hour={now_utc.hour}) — skipping daily summary.")
+        print("[discord] Not a morning run — skipping daily summary.")
 
     # Trade event alert: any run, only if something actually changed
     if trade_events:
