@@ -88364,6 +88364,308 @@
       "bracket_stop_loss_price": null,
       "created_at": "2025-02-02T03:19:14.547678Z",
       "bracket_stop_loss_limit_price": null
+    },
+    {
+      "stop_order_type": null,
+      "order_type": "market_order",
+      "limit_price": "1.5619",
+      "bracket_take_profit_price": null,
+      "stop_price": null,
+      "paid_commission": "5.58104389",
+      "meta_data": {
+        "cashflow": "0",
+        "ip": "111.118.178.89",
+        "otc": false,
+        "pnl": "0",
+        "source": "api"
+      },
+      "stop_trigger_method": null,
+      "mmp": "disabled",
+      "state": "closed",
+      "side": "buy",
+      "average_fill_price": "1.421610519987977156597535317",
+      "product_id": 14969,
+      "updated_at": "2026-03-23T11:07:52.500765Z",
+      "id": 1239237753,
+      "time_in_force": "gtc",
+      "quote_size": null,
+      "cancellation_reason": null,
+      "margin_mode": "isolated",
+      "bracket_trail_amount": null,
+      "product": {
+        "contract_type": "perpetual_futures",
+        "contract_unit_currency": "XRP",
+        "contract_value": "1",
+        "id": 14969,
+        "notional_type": "vanilla",
+        "quoting_asset": {
+          "minimum_precision": 2,
+          "precision": 8,
+          "symbol": "USD"
+        },
+        "settling_asset": {
+          "minimum_precision": 2,
+          "precision": 8,
+          "symbol": "USD"
+        },
+        "spot_index": {
+          "symbol": ".DEXRPUSD"
+        },
+        "symbol": "XRPUSD",
+        "tick_size": "0.0001",
+        "underlying_asset": {
+          "minimum_precision": 4,
+          "precision": 8,
+          "symbol": "XRP"
+        }
+      },
+      "trail_amount": null,
+      "commission": "0",
+      "unfilled_size": 0,
+      "reduce_only": false,
+      "bracket_take_profit_limit_price": null,
+      "bracket_order": null,
+      "client_order_id": null,
+      "user_id": 96450987,
+      "product_symbol": "XRPUSD",
+      "size": 6654,
+      "bracket_stop_loss_price": null,
+      "created_at": "2026-03-23T11:07:52.386301Z",
+      "bracket_stop_loss_limit_price": null
+    },
+    {
+      "stop_order_type": null,
+      "order_type": "limit_order",
+      "limit_price": "1.4119",
+      "bracket_take_profit_price": null,
+      "stop_price": null,
+      "paid_commission": "0",
+      "meta_data": {
+        "ip": "111.118.178.89",
+        "otc": false,
+        "source": "api"
+      },
+      "stop_trigger_method": null,
+      "mmp": "disabled",
+      "state": "cancelled",
+      "side": "buy",
+      "average_fill_price": null,
+      "product_id": 14969,
+      "updated_at": "2026-03-23T11:07:43.592618Z",
+      "id": 1239227780,
+      "time_in_force": "gtc",
+      "quote_size": null,
+      "cancellation_reason": "cancelled_by_user",
+      "margin_mode": "isolated",
+      "bracket_trail_amount": null,
+      "product": {
+        "contract_type": "perpetual_futures",
+        "contract_unit_currency": "XRP",
+        "contract_value": "1",
+        "id": 14969,
+        "notional_type": "vanilla",
+        "quoting_asset": {
+          "minimum_precision": 2,
+          "precision": 8,
+          "symbol": "USD"
+        },
+        "settling_asset": {
+          "minimum_precision": 2,
+          "precision": 8,
+          "symbol": "USD"
+        },
+        "spot_index": {
+          "symbol": ".DEXRPUSD"
+        },
+        "symbol": "XRPUSD",
+        "tick_size": "0.0001",
+        "underlying_asset": {
+          "minimum_precision": 4,
+          "precision": 8,
+          "symbol": "XRP"
+        }
+      },
+      "trail_amount": null,
+      "commission": "0",
+      "unfilled_size": 6654,
+      "reduce_only": false,
+      "bracket_take_profit_limit_price": null,
+      "bracket_order": null,
+      "client_order_id": null,
+      "user_id": 96450987,
+      "product_symbol": "XRPUSD",
+      "size": 6654,
+      "bracket_stop_loss_price": null,
+      "created_at": "2026-03-23T11:06:38.996574Z",
+      "bracket_stop_loss_limit_price": null
+    },
+    {
+      "stop_order_type": "stop_loss_order",
+      "order_type": "market_order",
+      "limit_price": "2188.2",
+      "bracket_take_profit_price": null,
+      "stop_price": "2101.32",
+      "paid_commission": "5.35293165",
+      "meta_data": {
+        "avg_exit_price": "2105.05",
+        "cashflow": "569.26749999",
+        "edit_timestamp": "2026-03-23 06:45:18.390690Z",
+        "entry_price": "2237.130626450116009280742459",
+        "exit_price_with_size": [
+          {
+            "price": "2105.05000000",
+            "size": "-431"
+          }
+        ],
+        "fills_pnl_with_margin": [
+          {
+            "margin": "2424.26453303",
+            "pnl": "569.26749999"
+          }
+        ],
+        "order_triggered_from_strategy_builder": false,
+        "otc": false,
+        "pnl": "569.26749999",
+        "roe": "23.48207022104527810347198676",
+        "source": "api"
+      },
+      "stop_trigger_method": "mark_price",
+      "mmp": "disabled",
+      "state": "closed",
+      "side": "buy",
+      "average_fill_price": "2105.05",
+      "product_id": 3136,
+      "updated_at": "2026-03-23T11:05:53.951608Z",
+      "id": 1231611289,
+      "time_in_force": "ioc",
+      "quote_size": null,
+      "cancellation_reason": null,
+      "margin_mode": "isolated",
+      "bracket_trail_amount": null,
+      "product": {
+        "contract_type": "perpetual_futures",
+        "contract_unit_currency": "ETH",
+        "contract_value": "0.01",
+        "id": 3136,
+        "notional_type": "vanilla",
+        "quoting_asset": {
+          "minimum_precision": 2,
+          "precision": 8,
+          "symbol": "USD"
+        },
+        "settling_asset": {
+          "minimum_precision": 2,
+          "precision": 8,
+          "symbol": "USD"
+        },
+        "spot_index": {
+          "symbol": ".DEETHUSD"
+        },
+        "symbol": "ETHUSD",
+        "tick_size": "0.05",
+        "underlying_asset": {
+          "minimum_precision": 4,
+          "precision": 18,
+          "symbol": "ETH"
+        }
+      },
+      "trail_amount": null,
+      "commission": "0",
+      "unfilled_size": 0,
+      "reduce_only": false,
+      "bracket_take_profit_limit_price": null,
+      "bracket_order": null,
+      "client_order_id": null,
+      "user_id": 96450987,
+      "product_symbol": "ETHUSD",
+      "size": 431,
+      "bracket_stop_loss_price": null,
+      "created_at": "2026-03-18T12:46:28.376508Z",
+      "bracket_stop_loss_limit_price": null
+    },
+    {
+      "stop_order_type": "stop_loss_order",
+      "order_type": "market_order",
+      "limit_price": "1.5359",
+      "bracket_take_profit_price": null,
+      "stop_price": "1.4018",
+      "paid_commission": "6.33838198",
+      "meta_data": {
+        "avg_exit_price": "1.4023",
+        "cashflow": "706.3442",
+        "edit_timestamp": "2026-03-23 09:45:27.081000Z",
+        "entry_price": "1.49450000",
+        "exit_price_with_size": [
+          {
+            "price": "1.40230000",
+            "size": "-7661"
+          }
+        ],
+        "fills_pnl_with_margin": [
+          {
+            "margin": "2870.36371046",
+            "pnl": "706.34420000"
+          }
+        ],
+        "order_triggered_from_strategy_builder": false,
+        "otc": false,
+        "pnl": "706.3442",
+        "roe": "24.60817761268318094021810803",
+        "source": "api"
+      },
+      "stop_trigger_method": "mark_price",
+      "mmp": "disabled",
+      "state": "closed",
+      "side": "buy",
+      "average_fill_price": "1.4023",
+      "product_id": 14969,
+      "updated_at": "2026-03-23T11:05:53.688262Z",
+      "id": 1231411811,
+      "time_in_force": "ioc",
+      "quote_size": null,
+      "cancellation_reason": null,
+      "margin_mode": "isolated",
+      "bracket_trail_amount": null,
+      "product": {
+        "contract_type": "perpetual_futures",
+        "contract_unit_currency": "XRP",
+        "contract_value": "1",
+        "id": 14969,
+        "notional_type": "vanilla",
+        "quoting_asset": {
+          "minimum_precision": 2,
+          "precision": 8,
+          "symbol": "USD"
+        },
+        "settling_asset": {
+          "minimum_precision": 2,
+          "precision": 8,
+          "symbol": "USD"
+        },
+        "spot_index": {
+          "symbol": ".DEXRPUSD"
+        },
+        "symbol": "XRPUSD",
+        "tick_size": "0.0001",
+        "underlying_asset": {
+          "minimum_precision": 4,
+          "precision": 8,
+          "symbol": "XRP"
+        }
+      },
+      "trail_amount": null,
+      "commission": "0",
+      "unfilled_size": 0,
+      "reduce_only": false,
+      "bracket_take_profit_limit_price": null,
+      "bracket_order": null,
+      "client_order_id": null,
+      "user_id": 96450987,
+      "product_symbol": "XRPUSD",
+      "size": 7661,
+      "bracket_stop_loss_price": null,
+      "created_at": "2026-03-18T11:32:11.828712Z",
+      "bracket_stop_loss_limit_price": null
     }
   ]
 }

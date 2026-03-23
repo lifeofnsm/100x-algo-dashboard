@@ -1,17 +1,17 @@
 {
   "shalini": {
-    "closed_count": 288,
-    "open_count": 2,
-    "last_closed_exit": "2026-03-15T05:19:22.282523+00:00"
+    "closed_count": 290,
+    "open_count": 1,
+    "last_closed_exit": "2026-03-18T12:46:22.934580+00:00"
   },
   "mom": {
-    "closed_count": 6,
-    "open_count": 2,
-    "last_closed_exit": "2026-03-15T05:18:26.963431+00:00"
+    "closed_count": 8,
+    "open_count": 1,
+    "last_closed_exit": "2026-03-18T12:46:42.019824+00:00"
   },
   "vinay": {
-    "closed_count": 455,
-    "open_count": 2,
-    "last_closed_exit": "2026-03-15T05:19:14.400271+00:00"
+    "closed_count": 457,
+    "open_count": 1,
+    "last_closed_exit": "2026-03-18T12:46:28.376508+00:00"
   }
 }
